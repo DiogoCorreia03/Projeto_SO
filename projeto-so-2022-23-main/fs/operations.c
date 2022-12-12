@@ -192,7 +192,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         ALWAYS_ASSERT(block != NULL, "tfs_write: data block deleted mid-write");
 
         // Perform the actual write
-        memcpy(block + file->of_offset, buffer, to_write);
+        memcpy(/*(int *)*/block + file->of_offset, buffer, to_write);
 
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_write;
@@ -246,7 +246,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     if (ferror(f_read))
         return -1;
 
-    int f_write = tfs_open(dest_path, "w");
+    int f_write = tfs_open(dest_path, TFS_O_CREAT);
     if (f_write == -1) {
         fclose(f_read);
         return -1;
