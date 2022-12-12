@@ -214,7 +214,7 @@ int inode_create(inode_type i_type) {
             // ensure fields are initialized
             inode->i_size = 0;
             inode->i_data_block = -1;
-
+            inode->hard_link_counter = 1;
             // run regular deletion process
             inode_delete(inumber);
             return -1;
