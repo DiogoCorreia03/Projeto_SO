@@ -231,6 +231,7 @@ int inode_create(inode_type i_type) {
             dir_entry[i].d_inumber = -1;
         }
     } break;
+    case T_SYMB_LINK: //FIXME symb link != de file?
     case T_FILE:
         // In case of a new file, simply sets its size to 0
         inode_table[inumber].i_size = 0;

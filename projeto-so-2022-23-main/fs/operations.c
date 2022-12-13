@@ -133,14 +133,36 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    int link = tfs_open(link_name, TFS_O_CREAT);
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+
+    int inum = inode_create(T_SYMB_LINK);
+    if (inum == -1)
+        return -1;
+
+    if (add_dir_entry(root_dir_inode, link_name, inum) == -1) {
+        inode_delete(inum);
+        return -1;
+    }
+    inode_t *link = inode_get(inum);
+    int bnum = data_block_alloc();
+    if (bnum == -1) {
+        inode_delete(inum); //FIXME
+        return -1;
+    }
+    link->i_data_block = bnum;
+    void *block = data_block_get(l)
+    /*size_t offset = 0;
+    int link = add_to_open_file_table(inum, offset);
     if (link == -1) 
         return -1;
+
     if (tfs_write(link, target, strlen(target)) == -1)
         return -1;
+
     if (tfs_close(link) == -1)
         return -1;
-    return 0;
+        
+    return 0;*/
     
 }
 
@@ -148,15 +170,19 @@ int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     if (root_dir_inode == NULL)
         return -1;
+
     int inumber = tfs_lookup(target, root_dir_inode);
     if (inumber == -1)
         return -1;
+
     if (add_dir_entry(root_dir_inode, link_name, inumber) == -1) {
         return -1;
     }
+
     inode_t *link = inode_get(inumber);
     if (link == NULL)
         return -1;
+
     link->hard_link_counter++;
     return 0;
 }
@@ -203,7 +229,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         ALWAYS_ASSERT(block != NULL, "tfs_write: data block deleted mid-write");
 
         // Perform the actual write
-        memcpy(/*(int *)*/block + file->of_offset, buffer, to_write);
+        memcpy(block + file->of_offset, buffer, to_write);
 
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_write;
