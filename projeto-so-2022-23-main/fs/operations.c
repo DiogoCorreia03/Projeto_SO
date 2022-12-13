@@ -143,27 +143,24 @@ int tfs_sym_link(char const *target, char const *link_name) {
         inode_delete(inum);
         return -1;
     }
+
     inode_t *link = inode_get(inum);
     int bnum = data_block_alloc();
     if (bnum == -1) {
         inode_delete(inum); //FIXME
         return -1;
     }
+
     link->i_data_block = bnum;
-    void *block = data_block_get(l)
-    /*size_t offset = 0;
-    int link = add_to_open_file_table(inum, offset);
-    if (link == -1) 
-        return -1;
 
-    if (tfs_write(link, target, strlen(target)) == -1)
-        return -1;
+    void *block = data_block_get(link->i_data_block);
+    ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write");
 
-    if (tfs_close(link) == -1)
-        return -1;
-        
-    return 0;*/
-    
+    memcpy(block, target, strlen(target));
+    //FIXME aumentar of_set e i_size como no tfs_write?
+    //FIXME preciso abrir o inode como se faz com o tfs_open para o tfs_write para podermos escrever no data_block?
+
+    return 0;
 }
 
 int tfs_link(char const *target, char const *link_name) {
