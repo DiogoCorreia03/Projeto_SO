@@ -91,6 +91,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
 
+        inode_t *inode_name = inode_get(inum);
+        if (inode_name->i_node_type & T_SYMB_LINK) {
+            inode = inode_get(tfs_lookup((char *) data_block_get(inode_name->i_data_block), root_dir_inode));
+        }
+
         // Truncate (if requested)
         if (mode & TFS_O_TRUNC) {
             if (inode->i_size > 0) {
@@ -142,7 +147,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL || target_inode->i_node_type == T_SYMB_LINK) // nao pode haver sym link para outro sym link
+    if (target_inode == NULL || target_inode->i_node_type & T_SYMB_LINK) // nao pode haver sym link para outro sym link
         return -1;
 
     int link_inum = inode_create(T_SYMB_LINK);
@@ -170,7 +175,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     link->i_size = sizeof(target);
 
-    if (add_dir_entry(root_dir_inode, link_name, link_inum) == -1) {
+    if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
         inode_delete(link_inum);
         return -1;
     }
@@ -188,15 +193,15 @@ int tfs_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
-    if (target_inode == NULL || target_inode->i_node_type == T_SYMB_LINK) // nao pode haver sym link para outro sym link
+    if (target_inode == NULL || target_inode->i_node_type & T_SYMB_LINK) // nao pode haver sym link para outro sym link
         return -1;
 
-    if (add_dir_entry(root_dir_inode, link_name, target_inumber) == -1) {
+    if (add_dir_entry(root_dir_inode, link_name + 1, target_inumber) == -1) {
         return -1;
     }
 
     inode_t *link = inode_get(target_inumber);
-    if (link == NULL)
+    if (link == NULL)   
         return -1;
 
     link->hard_link_counter++;
@@ -296,7 +301,7 @@ int tfs_unlink(char const *target) {
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     FILE *f_read = fopen(source_path, "r");
-    if (ferror(f_read))
+    if (f_read == NULL)
         return -1;
 
     int f_write = tfs_open(dest_path, TFS_O_CREAT);
@@ -307,9 +312,8 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
 
     char *buffer[BUFFER_SIZE]; //FIXME buffer a 1024? entao n é preciso ciclo
     size_t bytes_read = 0;
-    size_t buffer0 = sizeof(buffer[0]);
     while (1) {
-        bytes_read = fread(buffer, buffer0, sizeof(buffer) / buffer0, f_read);
+        bytes_read = fread(buffer, sizeof(char), sizeof(buffer), f_read);
         if (ferror(f_read)) {
             fclose(f_read);
             tfs_close(f_write);
