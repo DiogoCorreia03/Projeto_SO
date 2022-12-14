@@ -134,31 +134,46 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-
-    int inum = inode_create(T_SYMB_LINK);
-    if (inum == -1)
+    if (root_dir_inode == NULL)
         return -1;
 
-    if (add_dir_entry(root_dir_inode, link_name, inum) == -1) {
-        inode_delete(inum);
+    int target_inum = tfs_lookup(target, root_dir_inode);
+    if (target_inum == -1)
+        return -1;
+
+    inode_t *target_inode = inode_get(target_inum);
+    if (target_inode == NULL || target_inode->i_node_type == T_SYMB_LINK) // nao pode haver sym link para outro sym link
+        return -1;
+
+    int link_inum = inode_create(T_SYMB_LINK);
+    if (link_inum == -1)
+        return -1;
+
+    inode_t *link = inode_get(link_inum);
+    if (link == NULL) {
+        inode_delete(link_inum);
         return -1;
     }
 
-    inode_t *link = inode_get(inum);
     int bnum = data_block_alloc();
     if (bnum == -1) {
-        inode_delete(inum); //FIXME
+        inode_delete(link_inum);
         return -1;
     }
 
     link->i_data_block = bnum;
 
     void *block = data_block_get(link->i_data_block);
-    ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write");
+    ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write"); // FIXME
 
-    memcpy(block, target, strlen(target));
-    //FIXME aumentar of_set e i_size como no tfs_write?
-    //FIXME preciso abrir o inode como se faz com o tfs_open para o tfs_write para podermos escrever no data_block?
+    memcpy(block, target, strlen(target)); //FIXME strlen ou sizeof?
+
+    link->i_size = sizeof(target);
+
+    if (add_dir_entry(root_dir_inode, link_name, link_inum) == -1) {
+        inode_delete(link_inum);
+        return -1;
+    }
 
     return 0;
 }
@@ -168,15 +183,19 @@ int tfs_link(char const *target, char const *link_name) {
     if (root_dir_inode == NULL)
         return -1;
 
-    int inumber = tfs_lookup(target, root_dir_inode);
-    if (inumber == -1)
+    int target_inumber = tfs_lookup(target, root_dir_inode);
+    if (target_inumber == -1)
         return -1;
 
-    if (add_dir_entry(root_dir_inode, link_name, inumber) == -1) {
+    inode_t *target_inode = inode_get(target_inumber);
+    if (target_inode == NULL || target_inode->i_node_type == T_SYMB_LINK) // nao pode haver sym link para outro sym link
+        return -1;
+
+    if (add_dir_entry(root_dir_inode, link_name, target_inumber) == -1) {
         return -1;
     }
 
-    inode_t *link = inode_get(inumber);
+    inode_t *link = inode_get(target_inumber);
     if (link == NULL)
         return -1;
 
@@ -226,7 +245,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         ALWAYS_ASSERT(block != NULL, "tfs_write: data block deleted mid-write");
 
         // Perform the actual write
-        memcpy(block + file->of_offset, buffer, to_write);
+        memcpy((char *) block + file->of_offset, buffer, to_write);
 
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_write;
@@ -259,7 +278,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         ALWAYS_ASSERT(block != NULL, "tfs_read: data block deleted mid-read");
 
         // Perform the actual read
-        memcpy(buffer, block + file->of_offset, to_read);
+        memcpy(buffer, (char *) block + file->of_offset, to_read);
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_read;
     }
@@ -276,7 +295,7 @@ int tfs_unlink(char const *target) {
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    FILE* f_read = fopen(source_path, "r");
+    FILE *f_read = fopen(source_path, "r");
     if (ferror(f_read))
         return -1;
 
@@ -286,10 +305,10 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char* buffer[BUFFER_SIZE];
-    int bytes_read = 0;
-    int buffer0 = sizeof(buffer[0]);
-    while(1) {
+    char *buffer[BUFFER_SIZE]; //FIXME buffer a 1024? entao n é preciso ciclo
+    size_t bytes_read = 0;
+    size_t buffer0 = sizeof(buffer[0]);
+    while (1) {
         bytes_read = fread(buffer, buffer0, sizeof(buffer) / buffer0, f_read);
         if (ferror(f_read)) {
             fclose(f_read);
@@ -297,17 +316,17 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
             return -1;
         }
 
-        int bytes_written = tfs_write(f_write, buffer, bytes_read);
+        ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
         if (bytes_written == -1) {
             fclose(f_read);
             tfs_close(f_write);
             return -1;
         }
 
-        if (feof(f_read))
+        if (feof(f_read) || bytes_written == 0) //FIXME ficheiro maior q um 1k byte, mudar para devolver -1, tanto faz mas faz mais sentido
             break;
     }
-   
+
     if (tfs_close(f_write) == -1) {
         fclose(f_read);
         return -1;
