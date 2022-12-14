@@ -13,7 +13,7 @@ int main() {
         "BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! "
         "BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! "
         "BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! BBB! "
-        "BBB! BBB! BBB! BBB! BBB! ";
+"BBB! BBB! BBB! BBB! BBB! ";
     char *path_copied_file = "/f1";
     char *path_src = "tests/file_to_copy_over512.txt";
     char buffer[600];
@@ -25,7 +25,6 @@ int main() {
 
     f = tfs_copy_from_external_fs(path_src, path_copied_file);
     assert(f != -1);
-    assert(f == strlen(str_ext_file));
 
     f = tfs_open(path_copied_file, TFS_O_CREAT);
     assert(f != -1);
