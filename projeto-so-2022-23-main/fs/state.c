@@ -99,13 +99,13 @@ int state_init(tfs_params params) {
         return -1; // already initialized
     }
 
-    inode_table = malloc(INODE_TABLE_SIZE * sizeof(inode_t));
-    freeinode_ts = malloc(INODE_TABLE_SIZE * sizeof(allocation_state_t));
-    fs_data = malloc(DATA_BLOCKS * BLOCK_SIZE);
-    free_blocks = malloc(DATA_BLOCKS * sizeof(allocation_state_t));
-    open_file_table = malloc(MAX_OPEN_FILES * sizeof(open_file_entry_t));
+    inode_table = (inode_t *) malloc(INODE_TABLE_SIZE * sizeof(inode_t));
+    freeinode_ts = (allocation_state_t *) malloc(INODE_TABLE_SIZE * sizeof(allocation_state_t));
+    fs_data = (char *) malloc(DATA_BLOCKS * BLOCK_SIZE);
+    free_blocks = (allocation_state_t *) malloc(DATA_BLOCKS * sizeof(allocation_state_t));
+    open_file_table = (open_file_entry_t *) malloc(MAX_OPEN_FILES * sizeof(open_file_entry_t));
     free_open_file_entries =
-        malloc(MAX_OPEN_FILES * sizeof(allocation_state_t));
+        (allocation_state_t *) malloc(MAX_OPEN_FILES * sizeof(allocation_state_t));
 
     if (!inode_table || !freeinode_ts || !fs_data || !free_blocks ||
         !open_file_table || !free_open_file_entries) {
@@ -231,7 +231,7 @@ int inode_create(inode_type i_type) {
             dir_entry[i].d_inumber = -1;
         }
     } break;
-    case T_SYMB_LINK: //FIXME symb link != de file?
+    case T_SYMB_LINK:
     case T_FILE:
         // In case of a new file, simply sets its size to 0
         inode_table[inumber].i_size = 0;
