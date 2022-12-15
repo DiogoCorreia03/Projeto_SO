@@ -83,7 +83,7 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     if (inode == NULL)
         return -1;
 
-    while (inode->i_node_type == T_SYMB_LINK) {
+    if (inode->i_node_type == T_SYMB_LINK) {
         char *path = (char *)data_block_get(inode->i_data_block);
         ALWAYS_ASSERT(path != NULL,
                       "tfs_lookup: data block deleted mid-write"); // FIXME
@@ -92,7 +92,7 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
         if (inumber == -1)
             return -1;
 
-        inode = inode_get(inumber); // FIXME verificar erros (feito?)
+        inode = inode_get(inumber);
         if (inode == NULL)
             return -1;
     }
@@ -136,6 +136,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
+            printf("aqui");
             return -1; // no space in inode table
         }
 
@@ -173,9 +174,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL ||
-        target_inode->i_node_type &
-            T_SYMB_LINK) // nao pode haver sym link para outro sym link
+    if (target_inode == NULL)
         return -1;
 
     int link_inum = inode_create(T_SYMB_LINK);
@@ -217,13 +216,13 @@ int tfs_link(char const *target, char const *link_name) {
     if (root_dir_inode == NULL)
         return -1;
 
-    int target_inumber = tfs_lookup(target, root_dir_inode);
+    int target_inumber = find_in_dir(root_dir_inode, target + 1);
     if (target_inumber == -1)
         return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
     if (target_inode == NULL ||
-        target_inode->i_node_type &
+        target_inode->i_node_type ==
             T_SYMB_LINK) // nao pode haver sym link para hard link
         return -1;
 
@@ -332,16 +331,15 @@ int tfs_unlink(char const *target) {
     if (target_inode == NULL)
         return -1;
 
-    if (clear_dir_entry(root_dir_inode, target) == -1)
+    if (clear_dir_entry(root_dir_inode, target + 1) == -1)
         return -1;
 
     target_inode->hard_link_counter--;
 
     if (target_inode->hard_link_counter == 0)
         inode_delete(target_inum);
-        
-    return 0;
 
+    return 0;
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
@@ -355,10 +353,11 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char *buffer[state_block_size()]; // FIXME buffer a 1024? entao n é preciso
-                                      // ciclo
-    size_t bytes_read = 0;
+    char *buffer[state_block_size()];
     memset(buffer, 0, sizeof(buffer));
+
+    size_t bytes_read = 0;
+
     bytes_read = fread(buffer, sizeof(char), sizeof(buffer), f_read);
     if (ferror(f_read)) {
         fclose(f_read);
@@ -373,8 +372,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    if (!feof(f_read)) // FIXME ficheiro maior q um 1k byte, mudar para
-                       // devolver -1, tanto faz mas faz mais sentido
+    if (!feof(f_read)) // ficheiro maior q um 1k byte -> -1
         return -1;
 
     if (tfs_close(f_write) == -1) {
