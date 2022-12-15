@@ -99,13 +99,16 @@ int state_init(tfs_params params) {
         return -1; // already initialized
     }
 
-    inode_table = (inode_t *) malloc(INODE_TABLE_SIZE * sizeof(inode_t));
-    freeinode_ts = (allocation_state_t *) malloc(INODE_TABLE_SIZE * sizeof(allocation_state_t));
-    fs_data = (char *) malloc(DATA_BLOCKS * BLOCK_SIZE);
-    free_blocks = (allocation_state_t *) malloc(DATA_BLOCKS * sizeof(allocation_state_t));
-    open_file_table = (open_file_entry_t *) malloc(MAX_OPEN_FILES * sizeof(open_file_entry_t));
-    free_open_file_entries =
-        (allocation_state_t *) malloc(MAX_OPEN_FILES * sizeof(allocation_state_t));
+    inode_table = (inode_t *)malloc(INODE_TABLE_SIZE * sizeof(inode_t));
+    freeinode_ts = (allocation_state_t *)malloc(INODE_TABLE_SIZE *
+                                                sizeof(allocation_state_t));
+    fs_data = (char *)malloc(DATA_BLOCKS * BLOCK_SIZE);
+    free_blocks =
+        (allocation_state_t *)malloc(DATA_BLOCKS * sizeof(allocation_state_t));
+    open_file_table =
+        (open_file_entry_t *)malloc(MAX_OPEN_FILES * sizeof(open_file_entry_t));
+    free_open_file_entries = (allocation_state_t *)malloc(
+        MAX_OPEN_FILES * sizeof(allocation_state_t));
 
     if (!inode_table || !freeinode_ts || !fs_data || !free_blocks ||
         !open_file_table || !free_open_file_entries) {
@@ -205,6 +208,8 @@ int inode_create(inode_type i_type) {
     insert_delay(); // simulate storage access delay (to inode)
 
     inode->i_node_type = i_type;
+    inode->hard_link_counter = 1;
+
     switch (i_type) {
     case T_DIRECTORY: {
         // Initializes directory (filling its block with empty entries, labeled
@@ -214,7 +219,6 @@ int inode_create(inode_type i_type) {
             // ensure fields are initialized
             inode->i_size = 0;
             inode->i_data_block = -1;
-            inode->hard_link_counter = 1;
             // run regular deletion process
             inode_delete(inumber);
             return -1;
