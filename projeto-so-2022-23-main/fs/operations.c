@@ -62,15 +62,42 @@ static bool valid_pathname(char const *name) {
  * Returns the inumber of the file, -1 if unsuccessful.
  */
 static int tfs_lookup(char const *name, inode_t const *root_inode) {
-    // TODO: assert that root_inode is the root directory
     if (!valid_pathname(name)) {
         return -1;
     }
 
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+    ALWAYS_ASSERT(root_dir_inode != NULL,
+                  "tfs_lookup: root dir inode must exist");
+    ALWAYS_ASSERT(root_dir_inode == root_inode,
+                  "tfs_lookup: inode passsed isn't root inode") // FIXME
+
     // skip the initial '/' character
     name++;
 
-    return find_in_dir(root_inode, name);
+    int inumber = find_in_dir(root_inode, name);
+    if (inumber == -1)
+        return -1;
+
+    inode_t *inode = inode_get(inumber);
+    if (inode == NULL)
+        return -1;
+
+    while (inode->i_node_type == T_SYMB_LINK) {
+        char *path = (char *)data_block_get(inode->i_data_block);
+        ALWAYS_ASSERT(path != NULL,
+                      "tfs_lookup: data block deleted mid-write"); // FIXME
+
+        inumber = tfs_lookup(path, root_inode);
+        if (inumber == -1)
+            return -1;
+
+        inode = inode_get(inumber); // FIXME verificar erros (feito?)
+        if (inode == NULL)
+            return -1;
+    }
+
+    return inumber;
 }
 
 int tfs_open(char const *name, tfs_file_mode_t mode) {
@@ -90,17 +117,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         inode_t *inode = inode_get(inum);
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
-
-        if (inode->i_node_type & T_SYMB_LINK) {
-            char *path = (char *) data_block_get(inode->i_data_block);
-            ALWAYS_ASSERT(path != NULL, "tfs_open: data block deleted mid-write"); // FIXME
-            inum = tfs_lookup(path, root_dir_inode);
-            if (inum == -1)
-                return -1;
-            inode = inode_get(inum); //FIXME verificar erros (feito?)
-            if (inode == NULL)
-                return -1;
-        }
 
         // Truncate (if requested)
         if (mode & TFS_O_TRUNC) {
@@ -145,7 +161,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    if (root_dir_inode == NULL)
+    if (root_dir_inode == NULL) // FIXME ASSERT?
+        return -1;
+
+    if (strlen(target) > state_block_size()) // o path do target nao pode ser
+                                             // maior do o block size
         return -1;
 
     int target_inum = tfs_lookup(target, root_dir_inode);
@@ -153,7 +173,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL || target_inode->i_node_type & T_SYMB_LINK) // nao pode haver sym link para outro sym link
+    if (target_inode == NULL ||
+        target_inode->i_node_type &
+            T_SYMB_LINK) // nao pode haver sym link para outro sym link
         return -1;
 
     int link_inum = inode_create(T_SYMB_LINK);
@@ -175,9 +197,10 @@ int tfs_sym_link(char const *target, char const *link_name) {
     link->i_data_block = bnum;
 
     void *block = data_block_get(link->i_data_block);
-    ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write"); // FIXME
+    ALWAYS_ASSERT(block != NULL,
+                  "tfs_sym_link: data block deleted mid-write"); // FIXME
 
-    memcpy(block, target, strlen(target)); //FIXME strlen ou sizeof?
+    memcpy(block, target, strlen(target)); // FIXME strlen ou sizeof?
 
     link->i_size = sizeof(target);
 
@@ -199,18 +222,17 @@ int tfs_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
-    if (target_inode == NULL || target_inode->i_node_type & T_SYMB_LINK) // nao pode haver sym link para outro sym link
+    if (target_inode == NULL ||
+        target_inode->i_node_type &
+            T_SYMB_LINK) // nao pode haver sym link para hard link
         return -1;
 
     if (add_dir_entry(root_dir_inode, link_name + 1, target_inumber) == -1) {
         return -1;
     }
 
-    inode_t *link = inode_get(target_inumber);
-    if (link == NULL)   
-        return -1;
+    target_inode->hard_link_counter++;
 
-    link->hard_link_counter++;
     return 0;
 }
 
@@ -256,7 +278,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         ALWAYS_ASSERT(block != NULL, "tfs_write: data block deleted mid-write");
 
         // Perform the actual write
-        memcpy((char *) block + file->of_offset, buffer, to_write);
+        memcpy((char *)block + file->of_offset, buffer, to_write);
 
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_write;
@@ -289,11 +311,9 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         ALWAYS_ASSERT(block != NULL, "tfs_read: data block deleted mid-read");
 
         // Perform the actual read
-        memcpy(buffer, (char *) block + file->of_offset, to_read);
+        memcpy(buffer, (char *)block + file->of_offset, to_read);
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_read;
-        /*FILE* fd = fopen("AAAA.txt", "w");
-        fwrite(buffer, 1, strlen(buffer), fd);*/
     }
 
     return (ssize_t)to_read;
@@ -318,26 +338,27 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char *buffer[BUFFER_SIZE]; //FIXME buffer a 1024? entao n é preciso ciclo
+    char *buffer[state_block_size()]; // FIXME buffer a 1024? entao n é preciso
+                                      // ciclo
     size_t bytes_read = 0;
-    while (1) {
-        bytes_read = fread(buffer, sizeof(char), sizeof(buffer), f_read);
-        if (ferror(f_read)) {
-            fclose(f_read);
-            tfs_close(f_write);
-            return -1;
-        }
-
-        ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
-        if (bytes_written == -1) {
-            fclose(f_read);
-            tfs_close(f_write);
-            return -1;
-        }
-
-        if (feof(f_read) || bytes_written == 0) //FIXME ficheiro maior q um 1k byte, mudar para devolver -1, tanto faz mas faz mais sentido
-            break;
+    memset(buffer, 0, sizeof(buffer));
+    bytes_read = fread(buffer, sizeof(char), sizeof(buffer), f_read);
+    if (ferror(f_read)) {
+        fclose(f_read);
+        tfs_close(f_write);
+        return -1;
     }
+
+    ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
+    if (bytes_written == -1) {
+        fclose(f_read);
+        tfs_close(f_write);
+        return -1;
+    }
+
+    if (!feof(f_read)) // FIXME ficheiro maior q um 1k byte, mudar para
+                       // devolver -1, tanto faz mas faz mais sentido
+        return -1;
 
     if (tfs_close(f_write) == -1) {
         fclose(f_read);
