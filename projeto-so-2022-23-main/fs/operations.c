@@ -91,9 +91,15 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
 
-        inode_t *inode_name = inode_get(inum);
-        if (inode_name->i_node_type & T_SYMB_LINK) {
-            inode = inode_get(tfs_lookup((char *) data_block_get(inode_name->i_data_block), root_dir_inode));
+        if (inode->i_node_type & T_SYMB_LINK) {
+            char *path = (char *) data_block_get(inode->i_data_block);
+            ALWAYS_ASSERT(path != NULL, "tfs_open: data block deleted mid-write"); // FIXME
+            inum = tfs_lookup(path, root_dir_inode);
+            if (inum == -1)
+                return -1;
+            inode = inode_get(inum); //FIXME verificar erros (feito?)
+            if (inode == NULL)
+                return -1;
         }
 
         // Truncate (if requested)
@@ -286,6 +292,8 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         memcpy(buffer, (char *) block + file->of_offset, to_read);
         // The offset associated with the file handle is incremented accordingly
         file->of_offset += to_read;
+        /*FILE* fd = fopen("AAAA.txt", "w");
+        fwrite(buffer, 1, strlen(buffer), fd);*/
     }
 
     return (ssize_t)to_read;
