@@ -304,7 +304,7 @@ int tfs_unlink(char const *target) {
     if (root_dir_inode == NULL)
         return -1;
 
-    int target_inum = tfs_lookup(target, root_dir_inode);
+    int target_inum = find_in_dir(root_dir_inode, target + 1);
     if (target_inum == -1)
         return -1;
 
