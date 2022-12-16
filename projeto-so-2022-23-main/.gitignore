@@ -3,7 +3,6 @@ tests/*
 !tests/*.c
 !tests/*.h
 !tests/*.txt
-tests/*.out
 
 ######################
 # C Ignores

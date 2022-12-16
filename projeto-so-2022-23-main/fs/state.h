@@ -27,7 +27,7 @@ typedef struct {
     int hard_link_counter;
     size_t i_size;
     int i_data_block;
-
+    pthread_rwlock_t inode_lock;
     // in a more complete FS, more fields could exist here
 } inode_t;
 
@@ -39,10 +39,13 @@ typedef enum { FREE = 0, TAKEN = 1 } allocation_state_t;
 typedef struct {
     int of_inumber;
     size_t of_offset;
-    //pthread_rwlock_t  file_lock;
 } open_file_entry_t;
 
-//static pthread_mutex_t file_table_lock;
+
+static pthread_mutex_t file_table_lock;
+static pthread_mutex_t inode_table_lock;
+static pthread_mutex_t data_block_table_lock;
+static pthread_mutex_t dir_entries_table_lock;
 
 
 int state_init(tfs_params);

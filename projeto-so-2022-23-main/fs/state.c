@@ -127,6 +127,12 @@ int state_init(tfs_params params) {
         free_open_file_entries[i] = FREE;
     }
 
+    pthread_mutex_init(&file_table_lock);
+    pthread_mutex_init(&inode_table_lock);
+    pthread_mutex_init(&data_block_table_lock);
+    pthread_mutex_init(&dir_entries_table_lock);
+    
+
     return 0;
 }
 
@@ -209,6 +215,7 @@ int inode_create(inode_type i_type) {
 
     inode->i_node_type = i_type;
     inode->hard_link_counter = 1;
+    pthread_rwlock_init(&(inode->inode_lock), NULL);
 
     switch (i_type) {
     case T_DIRECTORY: {
