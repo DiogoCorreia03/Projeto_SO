@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <pthread.h>
+
 
 /**
  * Directory entry
@@ -40,12 +42,6 @@ typedef struct {
     int of_inumber;
     size_t of_offset;
 } open_file_entry_t;
-
-
-static pthread_mutex_t file_table_lock;
-static pthread_mutex_t inode_table_lock;
-static pthread_mutex_t data_block_table_lock;
-static pthread_mutex_t dir_entries_table_lock;
 
 
 int state_init(tfs_params);
