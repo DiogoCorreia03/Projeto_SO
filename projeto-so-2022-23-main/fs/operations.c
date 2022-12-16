@@ -141,7 +141,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
-            printf("aqui");
             return -1; // no space in inode table
         }
 
@@ -170,7 +169,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_sym_link: root dir inode must exist");
 
-    if (strlen(target) > state_block_size()) // o path do target nao pode ser
+    if (sizeof(target) / sizeof(char *) > state_block_size()) // o path do target nao pode ser
                                              // maior do o block size
         return -1;
 
@@ -209,7 +208,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     memcpy(block, target, strlen(target)); // FIXME strlen ou sizeof?
 
-    link->i_size = sizeof(target) /*FIXME / sizeof(char const *) */;
+    link->i_size = sizeof(target) / sizeof(char const *);
 
     if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
         inode_delete(link_inum);
@@ -365,21 +364,18 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char *buffer[state_block_size()]; // FIXME sizeof = 8192
-    // FIXME char buffer[state_block_size()]; -> sizeof = 1024
-    // tem de ser um pointer?
-    memset(buffer, 0, sizeof(buffer) /*FIXME sizeof(char *) */);
+    char *buffer[state_block_size()];
+    memset(buffer, 0, sizeof(buffer) / sizeof(char *));
 
     size_t bytes_read = 0;
 
-    bytes_read = fread(buffer, sizeof(char),
-                       sizeof(buffer) /*FIXME /sizeof(char *) */, f_read);
+    bytes_read =
+        fread(buffer, sizeof(char), sizeof(buffer) / sizeof(char *), f_read);
     if (ferror(f_read)) {
         fclose(f_read);
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_read); // FIXME
 
     ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
     if (bytes_written == -1) {
@@ -387,7 +383,6 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_written); // FIXME
 
     if (!feof(f_read)) { // ficheiro maior q um 1k byte -> -1
         fclose(f_read);
