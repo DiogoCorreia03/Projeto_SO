@@ -70,7 +70,7 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_lookup: root dir inode must exist");
     ALWAYS_ASSERT(root_dir_inode == root_inode,
-                  "tfs_lookup: inode passsed isn't root inode") // FIXME
+                  "tfs_lookup: inode passsed isn't root inode") // FIXME TODO dizia para fazer assert mas faz senido poder continuar
 
     // skip the initial '/' character
     name++;
@@ -201,7 +201,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     memcpy(block, target, strlen(target)); // FIXME strlen ou sizeof?
 
-    link->i_size = sizeof(target);
+    link->i_size = sizeof(target)/*FIXME / sizeof(char const *) */;
 
     if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
         inode_delete(link_inum);
@@ -353,17 +353,21 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char *buffer[state_block_size()];
-    memset(buffer, 0, sizeof(buffer));
+    char *buffer[state_block_size()]; //FIXME sizeof = 8192
+    //FIXME char buffer[state_block_size()]; -> sizeof = 1024
+    //tem de ser um pointer?
+    memset(buffer, 0, sizeof(buffer)/*FIXME sizeof(char *) */);
+
 
     size_t bytes_read = 0;
 
-    bytes_read = fread(buffer, sizeof(char), sizeof(buffer), f_read);
+    bytes_read = fread(buffer, sizeof(char), sizeof(buffer)/*FIXME /sizeof(char *) */, f_read);
     if (ferror(f_read)) {
         fclose(f_read);
         tfs_close(f_write);
         return -1;
     }
+    printf("%ld\n", bytes_read); //FIXME
 
     ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
     if (bytes_written == -1) {
@@ -371,9 +375,14 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         tfs_close(f_write);
         return -1;
     }
+    printf("%ld\n", bytes_written); //FIXME
 
-    if (!feof(f_read)) // ficheiro maior q um 1k byte -> -1
+
+    if (!feof(f_read)) { // ficheiro maior q um 1k byte -> -1
+        fclose(f_read);
+        tfs_close(f_write);
         return -1;
+    }
 
     if (tfs_close(f_write) == -1) {
         fclose(f_read);
