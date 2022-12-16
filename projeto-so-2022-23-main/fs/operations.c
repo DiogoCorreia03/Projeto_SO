@@ -69,8 +69,11 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_lookup: root dir inode must exist");
-    ALWAYS_ASSERT(root_dir_inode == root_inode,
-                  "tfs_lookup: inode passsed isn't root inode") // FIXME TODO dizia para fazer assert mas faz senido poder continuar
+    ALWAYS_ASSERT(
+        root_dir_inode == root_inode,
+        "tfs_lookup: inode passsed isn't root inode") // FIXME TODO dizia para
+                                                      // fazer assert mas faz
+                                                      // senido poder continuar
 
     // skip the initial '/' character
     name++;
@@ -80,7 +83,8 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
         return -1;
 
     inode_t *inode = inode_get(inumber);
-    if (inode == NULL)
+    if (inode == NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_lookup:
+                       // directory files must have an inode");
         return -1;
 
     if (inode->i_node_type == T_SYMB_LINK) {
@@ -93,7 +97,8 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
             return -1;
 
         inode = inode_get(inumber);
-        if (inode == NULL)
+        if (inode == NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_lookup:
+                           // directory files must have an inode");
             return -1;
     }
 
@@ -162,8 +167,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    if (root_dir_inode == NULL) // FIXME ASSERT?
-        return -1;
+    ALWAYS_ASSERT(root_dir_inode != NULL,
+                  "tfs_sym_link: root dir inode must exist");
 
     if (strlen(target) > state_block_size()) // o path do target nao pode ser
                                              // maior do o block size
@@ -174,7 +179,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL)
+    if (target_inode ==
+        NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link: directory
+              // files must have an inode");
         return -1;
 
     int link_inum = inode_create(T_SYMB_LINK);
@@ -182,7 +189,8 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *link = inode_get(link_inum);
-    if (link == NULL) {
+    if (link == NULL) { // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
+                        // directory files must have an inode");
         inode_delete(link_inum);
         return -1;
     }
@@ -201,7 +209,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
     memcpy(block, target, strlen(target)); // FIXME strlen ou sizeof?
 
-    link->i_size = sizeof(target)/*FIXME / sizeof(char const *) */;
+    link->i_size = sizeof(target) /*FIXME / sizeof(char const *) */;
 
     if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
         inode_delete(link_inum);
@@ -213,15 +221,17 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
 int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    if (root_dir_inode == NULL)
-        return -1;
+    ALWAYS_ASSERT(root_dir_inode != NULL,
+                  "tfs_link: root dir inode must exist");
 
     int target_inumber = find_in_dir(root_dir_inode, target + 1);
     if (target_inumber == -1)
         return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
-    if (target_inode == NULL ||
+    if (target_inode ==
+            NULL || // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
+                    // directory files must have an inode");
         target_inode->i_node_type ==
             T_SYMB_LINK) // nao pode haver sym link para hard link
         return -1;
@@ -320,15 +330,17 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
 int tfs_unlink(char const *target) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    if (root_dir_inode == NULL)
-        return -1;
+    ALWAYS_ASSERT(root_dir_inode != NULL,
+                  "tfs_unlink: root dir inode must exist");
 
     int target_inum = find_in_dir(root_dir_inode, target + 1);
     if (target_inum == -1)
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL)
+    if (target_inode ==
+        NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
+              // directory files must have an inode");
         return -1;
 
     if (clear_dir_entry(root_dir_inode, target + 1) == -1)
@@ -353,21 +365,21 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    char *buffer[state_block_size()]; //FIXME sizeof = 8192
-    //FIXME char buffer[state_block_size()]; -> sizeof = 1024
-    //tem de ser um pointer?
-    memset(buffer, 0, sizeof(buffer)/*FIXME sizeof(char *) */);
-
+    char *buffer[state_block_size()]; // FIXME sizeof = 8192
+    // FIXME char buffer[state_block_size()]; -> sizeof = 1024
+    // tem de ser um pointer?
+    memset(buffer, 0, sizeof(buffer) /*FIXME sizeof(char *) */);
 
     size_t bytes_read = 0;
 
-    bytes_read = fread(buffer, sizeof(char), sizeof(buffer)/*FIXME /sizeof(char *) */, f_read);
+    bytes_read = fread(buffer, sizeof(char),
+                       sizeof(buffer) /*FIXME /sizeof(char *) */, f_read);
     if (ferror(f_read)) {
         fclose(f_read);
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_read); //FIXME
+    printf("%ld\n", bytes_read); // FIXME
 
     ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
     if (bytes_written == -1) {
@@ -375,8 +387,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_written); //FIXME
-
+    printf("%ld\n", bytes_written); // FIXME
 
     if (!feof(f_read)) { // ficheiro maior q um 1k byte -> -1
         fclose(f_read);
