@@ -367,7 +367,6 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_read); //FIXME
 
     ssize_t bytes_written = tfs_write(f_write, buffer, bytes_read);
     if (bytes_written == -1) {
@@ -375,8 +374,6 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         tfs_close(f_write);
         return -1;
     }
-    printf("%ld\n", bytes_written); //FIXME
-
 
     if (!feof(f_read)) { // ficheiro maior q um 1k byte -> -1
         fclose(f_read);
