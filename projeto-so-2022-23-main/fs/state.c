@@ -33,6 +33,7 @@ static pthread_mutex_t file_table_lock;
 static pthread_mutex_t inode_table_lock;
 static pthread_mutex_t data_block_table_lock;
 static pthread_mutex_t dir_entries_table_lock;
+static pthread_mutex_t operations_lock; // lock para mexer no operations
 
 // Convenience macros
 #define INODE_TABLE_SIZE (fs_params.max_inode_count)
@@ -137,6 +138,7 @@ int state_init(tfs_params params) {
     pthread_mutex_init(&inode_table_lock, NULL);
     pthread_mutex_init(&data_block_table_lock, NULL);
     pthread_mutex_init(&dir_entries_table_lock, NULL);
+    pthread_mutex_init(&operations_lock, NULL); //ya
 
     return 0;
 }
@@ -152,6 +154,7 @@ int state_destroy(void) {
     pthread_mutex_destroy(&inode_table_lock);
     pthread_mutex_destroy(&data_block_table_lock);
     pthread_mutex_destroy(&dir_entries_table_lock);
+    pthread_mutex_destroy(&operations_lock); //ya
 
     free(inode_table);
     free(freeinode_ts);
@@ -180,7 +183,7 @@ int state_destroy(void) {
  *   - No free slots in inode table.
  */
 static int inode_alloc(void) {
-    pthread_mutex_lock(&inode_table_lock);
+    pthread_mutex_lock(&inode_table_lock);  //FIXME, não seria um lock semelante à linha 231 -------------------------------------------------
     for (size_t inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
         if ((inumber * sizeof(allocation_state_t) % BLOCK_SIZE) == 0) {
             insert_delay(); // simulate storage access delay (to freeinode_ts)
@@ -464,17 +467,20 @@ int find_in_dir(inode_t const *inode, char const *sub_name) {
  * Possible errors:
  *   - No free data blocks.
  */
-int data_block_alloc(void) {
+int data_block_alloc(void) {    //FIZ MAMBOS, como estão a mexer nos free blocks, não sabia se era supsosto fazer locks, mas no ano passado fizeram.
     for (size_t i = 0; i < DATA_BLOCKS; i++) {
         if (i * sizeof(allocation_state_t) % BLOCK_SIZE == 0) {
             insert_delay(); // simulate storage access delay to free_blocks
         }
 
+        pthread_mutex_lock(&data_block_table_lock);
         if (free_blocks[i] == FREE) {
             free_blocks[i] = TAKEN;
 
+            pthread_mutex_unlock(&data_block_table_lock);
             return (int)i;
         }
+        pthread_mutex_unlock(&data_block_table_lock);
     }
     return -1;
 }
@@ -485,13 +491,15 @@ int data_block_alloc(void) {
  * Input:
  *   - block_number: the block number/index
  */
-void data_block_free(int block_number) {
+void data_block_free(int block_number) {   //FIZ MAMBOS, mm merda da funcão anterior
     ALWAYS_ASSERT(valid_block_number(block_number),
                   "data_block_free: invalid block number");
 
     insert_delay(); // simulate storage access delay to free_blocks
 
+    pthread_mutex_lock(&data_block_table_lock);
     free_blocks[block_number] = FREE;
+    pthread_mutex_unlock(&data_block_table_lock);
 }
 
 /**
@@ -502,7 +510,7 @@ void data_block_free(int block_number) {
  *
  * Returns a pointer to the first byte of the block.
  */
-void *data_block_get(int block_number) {
+void *data_block_get(int block_number) {  //FIXME mesmo problema do inode_get
     ALWAYS_ASSERT(valid_block_number(block_number),
                   "data_block_get: invalid block number");
 
@@ -551,11 +559,15 @@ int add_to_open_file_table(int inumber, size_t offset) {
 void remove_from_open_file_table(int fhandle) {
     ALWAYS_ASSERT(valid_file_handle(fhandle),
                   "remove_from_open_file_table: file handle must be valid");
+    
+    pthread_mutex_lock(&file_table_lock);
 
     ALWAYS_ASSERT(free_open_file_entries[fhandle] == TAKEN,
                   "remove_from_open_file_table: file handle must be taken");
 
     free_open_file_entries[fhandle] = FREE;
+
+    pthread_mutex_unlock(&file_table_lock);
 }
 
 /**
@@ -578,3 +590,13 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
 
     return &open_file_table[fhandle];
 }
+
+void open_file_unlock() {  // Pronto
+    pthread_mutex_unlock(&operations_lock);
+}
+
+void open_file_lock() {
+    pthread_mutex_lock(&operations_lock);
+}
+
+// Peço desculpa previamente, por coisas que eu tenha acrescentado que estejam erradas. :(
