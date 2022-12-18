@@ -65,4 +65,7 @@ int add_to_open_file_table(int inumber, size_t offset);
 void remove_from_open_file_table(int fhandle);
 open_file_entry_t *get_open_file_entry(int fhandle);
 
+void open_file_unlock();
+void open_file_lock();
+
 #endif // STATE_H
