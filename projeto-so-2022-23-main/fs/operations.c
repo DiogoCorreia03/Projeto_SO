@@ -83,7 +83,8 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     if (inode == NULL)
         return -1;
 
-    //if the target inode is of the SYM link type, keep searching for the associated file recursively
+    // if the target inode is of the SYM link type, keep searching for the
+    // associated file recursively
     if (inode->i_node_type == T_SYMB_LINK) {
         char *path = (char *)data_block_get(inode->i_data_block);
         ALWAYS_ASSERT(path != NULL, "tfs_lookup: data block deleted mid-write");
@@ -110,7 +111,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_open: root dir inode must exist");
 
-    //only one file can be open at a time
+    // only one file can be open at a time
     open_file_lock();
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
@@ -170,10 +171,8 @@ int tfs_sym_link(char const *target, char const *link_name) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_sym_link: root dir inode must exist");
 
-    //
-    if (sizeof(target) / sizeof(char *) >
-        state_block_size()) // o path do target nao pode ser
-                            // maior do o block size
+    // target's path cant be bigger than block size
+    if (sizeof(target) / sizeof(char *) > state_block_size())
         return -1;
 
     int target_inum = tfs_lookup(target, root_dir_inode);
@@ -184,6 +183,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
     if (target_inode == NULL)
         return -1;
 
+    //create new inode for the sym link
     int link_inum = inode_create(T_SYMB_LINK);
     if (link_inum == -1)
         return -1;
@@ -194,19 +194,23 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
     }
 
+    //alloc new data block for the sym link inode
     int bnum = data_block_alloc();
     if (bnum == -1) {
         inode_delete(link_inum);
         return -1;
     }
 
+    //set the allocated data block as the inode's data block
     link->i_data_block = bnum;
 
     void *block = data_block_get(link->i_data_block);
     ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write");
 
+    //copy target's path to sym link's data block
     memcpy(block, target, strlen(target));
 
+    //set sym link's data block size
     link->i_size = sizeof(target) / sizeof(char const *);
 
     if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
@@ -351,9 +355,10 @@ int tfs_unlink(char const *target) {
     if (target_inode == NULL || target_inode->i_node_type == T_DIRECTORY)
         return -1;
 
-    //if the target file is open, return -1
+    // if the target file is open, return -1
     for (int i; i < MAX_FILES; i++) {
-        if (free_open_file_entries[i] == TAKEN && open_file_table[i].of_inumber == target_inum)
+        if (free_open_file_entries[i] == TAKEN &&
+            open_file_table[i].of_inumber == target_inum)
             return -1;
     }
 
