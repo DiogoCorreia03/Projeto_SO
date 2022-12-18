@@ -46,6 +46,7 @@ typedef struct {
 
 static inode_t *inode_table;
 static open_file_entry_t *open_file_table;
+static allocation_state_t *free_open_file_entries;
 
 int state_init(tfs_params);
 int state_destroy(void);

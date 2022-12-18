@@ -263,11 +263,8 @@ int inode_create(inode_type i_type) {
         inode_table[inumber].i_data_block = b;
 
         dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
-        ALWAYS_ASSERT(
-            dir_entry != NULL,
-            "inode_create: data block freed while in use"); // FIXME tirar e por
-                                                            // unlock com return
-                                                            // -1?
+        ALWAYS_ASSERT(dir_entry != NULL,
+                      "inode_create: data block freed while in use");
 
         for (size_t i = 0; i < MAX_DIR_ENTRIES; i++) {
             dir_entry[i].d_inumber = -1;
@@ -492,8 +489,7 @@ int find_in_dir(inode_t const *inode, char const *sub_name) {
  * Possible errors:
  *   - No free data blocks.
  */
-int data_block_alloc(
-    void) {
+int data_block_alloc(void) {
     for (size_t i = 0; i < DATA_BLOCKS; i++) {
         if (i * sizeof(allocation_state_t) % BLOCK_SIZE == 0) {
             insert_delay(); // simulate storage access delay to free_blocks
@@ -517,8 +513,7 @@ int data_block_alloc(
  * Input:
  *   - block_number: the block number/index
  */
-void data_block_free(
-    int block_number) {
+void data_block_free(int block_number) {
     ALWAYS_ASSERT(valid_block_number(block_number),
                   "data_block_free: invalid block number");
 
@@ -621,8 +616,6 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
     return &open_file_table[fhandle];
 }
 
-void open_file_unlock() {
-    pthread_mutex_unlock(&open_lock);
-}
+void open_file_unlock() { pthread_mutex_unlock(&open_lock); }
 
 void open_file_lock() { pthread_mutex_lock(&open_lock); }

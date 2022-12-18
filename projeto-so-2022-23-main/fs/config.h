@@ -10,4 +10,6 @@
 
 #define BUFFER_SIZE (128)
 
+#define MAX_FILES (16)
+
 #endif // CONFIG_H
