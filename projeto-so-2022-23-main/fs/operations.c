@@ -114,10 +114,12 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_open: root dir inode must exist");
+    open_file_lock();
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
 
     if (inum >= 0) {
+        pthread_rwlock_wrlock(&(inode_table[inum].inode_lock));
         // The file already exists
         inode_t *inode = inode_get(inum);
         ALWAYS_ASSERT(inode != NULL,
@@ -136,6 +138,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         } else {
             offset = 0;
         }
+        pthread_rwlock_unlock(&(inode_table[inum].inode_lock));
     } else if (mode & TFS_O_CREAT) {
         // The file does not exist; the mode specified that it should be created
         // Create inode
@@ -155,10 +158,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         return -1;
     }
 
+    int fhandle = add_to_open_file_table(inum, offset);
+    open_file_unlock();
     // Finally, add entry to the open file table and return the corresponding
     // handle
-    return add_to_open_file_table(inum, offset);
-
+    return fhandle;
     // Note: for simplification, if file was created with TFS_O_CREAT and there
     // is an error adding an entry to the open file table, the file is not
     // opened but it remains created
@@ -169,8 +173,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_sym_link: root dir inode must exist");
 
-    if (sizeof(target) / sizeof(char *) > state_block_size()) // o path do target nao pode ser
-                                             // maior do o block size
+    if (sizeof(target) / sizeof(char *) >
+        state_block_size()) // o path do target nao pode ser
+                            // maior do o block size
         return -1;
 
     int target_inum = tfs_lookup(target, root_dir_inode);
@@ -256,12 +261,15 @@ int tfs_close(int fhandle) {
 }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
+    pthread_mutex_lock(&(open_file_table[fhandle].open_file_lock));
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
+        pthread_mutex_unlock(&(open_file_table[fhandle].open_file_lock));
         return -1;
     }
 
     //  From the open file table entry, we get the inode
+    pthread_rwlock_wrlock(&(inode_table[file->of_inumber].inode_lock));
     inode_t *inode = inode_get(file->of_inumber);
     ALWAYS_ASSERT(inode != NULL, "tfs_write: inode of open file deleted");
 
@@ -276,6 +284,10 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             // If empty file, allocate new block
             int bnum = data_block_alloc();
             if (bnum == -1) {
+                pthread_rwlock_unlock(
+                    &(inode_table[file->of_inumber].inode_lock));
+                pthread_mutex_unlock(
+                    &(open_file_table[fhandle].open_file_lock));
                 return -1; // no space
             }
 
@@ -295,16 +307,21 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         }
     }
 
+    pthread_rwlock_unlock(&(inode_table[file->of_inumber].inode_lock));
+    pthread_mutex_unlock(&(open_file_table[fhandle].open_file_lock));
     return (ssize_t)to_write;
 }
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
+    pthread_mutex_lock(&(open_file_table[fhandle].open_file_lock));
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
+        pthread_mutex_unlock(&(open_file_table[fhandle].open_file_lock));
         return -1;
     }
 
     // From the open file table entry, we get the inode
+    pthread_rwlock_wrlock(&(inode_table[file->of_inumber].inode_lock));
     inode_t const *inode = inode_get(file->of_inumber);
     ALWAYS_ASSERT(inode != NULL, "tfs_read: inode of open file deleted");
 
@@ -324,6 +341,8 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         file->of_offset += to_read;
     }
 
+    pthread_rwlock_unlock(&(inode_table[file->of_inumber].inode_lock));
+    pthread_mutex_unlock(&(open_file_table[fhandle].open_file_lock));
     return (ssize_t)to_read;
 }
 
