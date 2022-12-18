@@ -6,7 +6,7 @@
 int main() {
 
     char *path_copied_file = "/f1";
-    char *path_src = "tests/craque.txt";
+    char *path_src = "tests/large.txt";
     char buffer_path[8500];
     char buffer_copied[8500];
 
