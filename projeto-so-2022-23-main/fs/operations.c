@@ -69,11 +69,8 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_lookup: root dir inode must exist");
-    ALWAYS_ASSERT(
-        root_dir_inode == root_inode,
-        "tfs_lookup: inode passsed isn't root inode") // FIXME TODO dizia para
-                                                      // fazer assert mas faz
-                                                      // senido poder continuar
+    if (root_dir_inode = !root_inode)
+        return -1;
 
     // skip the initial '/' character
     name++;
@@ -83,22 +80,20 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
         return -1;
 
     inode_t *inode = inode_get(inumber);
-    if (inode == NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_lookup:
-                       // directory files must have an inode");
+    if (inode == NULL)
         return -1;
 
+    //if the target inode is of the SYM link type, keep searching for the associated file recursively
     if (inode->i_node_type == T_SYMB_LINK) {
         char *path = (char *)data_block_get(inode->i_data_block);
-        ALWAYS_ASSERT(path != NULL,
-                      "tfs_lookup: data block deleted mid-write"); // FIXME
+        ALWAYS_ASSERT(path != NULL, "tfs_lookup: data block deleted mid-write");
 
         inumber = tfs_lookup(path, root_inode);
         if (inumber == -1)
             return -1;
 
         inode = inode_get(inumber);
-        if (inode == NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_lookup:
-                           // directory files must have an inode");
+        if (inode == NULL)
             return -1;
     }
 
@@ -114,6 +109,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_open: root dir inode must exist");
+
+    //only one file can be open at a time
     open_file_lock();
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
@@ -173,6 +170,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_sym_link: root dir inode must exist");
 
+    //
     if (sizeof(target) / sizeof(char *) >
         state_block_size()) // o path do target nao pode ser
                             // maior do o block size
@@ -183,9 +181,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode ==
-        NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link: directory
-              // files must have an inode");
+    if (target_inode == NULL)
         return -1;
 
     int link_inum = inode_create(T_SYMB_LINK);
@@ -193,8 +189,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *link = inode_get(link_inum);
-    if (link == NULL) { // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
-                        // directory files must have an inode");
+    if (link == NULL) {
         inode_delete(link_inum);
         return -1;
     }
@@ -208,10 +203,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
     link->i_data_block = bnum;
 
     void *block = data_block_get(link->i_data_block);
-    ALWAYS_ASSERT(block != NULL,
-                  "tfs_sym_link: data block deleted mid-write"); // FIXME
+    ALWAYS_ASSERT(block != NULL, "tfs_sym_link: data block deleted mid-write");
 
-    memcpy(block, target, strlen(target)); // FIXME strlen ou sizeof?
+    memcpy(block, target, strlen(target));
 
     link->i_size = sizeof(target) / sizeof(char const *);
 
@@ -233,9 +227,7 @@ int tfs_link(char const *target, char const *link_name) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
-    if (target_inode ==
-            NULL || // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
-                    // directory files must have an inode");
+    if (target_inode == NULL ||
         target_inode->i_node_type ==
             T_SYMB_LINK) // nao pode haver sym link para hard link
         return -1;
@@ -356,10 +348,14 @@ int tfs_unlink(char const *target) {
         return -1;
 
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode ==
-        NULL) // FIXME ALWAYS_ASSERT(inode != NULL, "tfs_sym_link:
-              // directory files must have an inode");
+    if (target_inode == NULL || target_inode->i_node_type == T_DIRECTORY)
         return -1;
+
+    //if the target file is open, return -1
+    for (int i; i < MAX_FILES; i++) {
+        if (free_open_file_entries[i] == TAKEN && open_file_table[i].of_inumber == target_inum)
+            return -1;
+    }
 
     if (clear_dir_entry(root_dir_inode, target + 1) == -1)
         return -1;
