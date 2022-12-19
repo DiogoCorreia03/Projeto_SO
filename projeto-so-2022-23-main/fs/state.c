@@ -124,6 +124,7 @@ int state_init(tfs_params params) {
     for (size_t i = 0; i < INODE_TABLE_SIZE; i++) {
         if (pthread_rwlock_init(&(inode_table[i].inode_lock), NULL) != 0)
             return -1;
+
         freeinode_ts[i] = FREE;
     }
     if (pthread_mutex_init(&inode_table_lock, NULL) != 0)
@@ -137,12 +138,14 @@ int state_init(tfs_params params) {
 
     for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
         free_open_file_entries[i] = FREE;
+
         if (pthread_mutex_init(&(open_file_table[i].open_file_lock), NULL) != 0)
             return -1;
     }
 
     if (pthread_mutex_init(&file_table_lock, NULL) != 0)
         return -1;
+        
     if (pthread_mutex_init(&dir_entries_table_lock, NULL) != 0)
         return -1;
 
@@ -158,10 +161,13 @@ int state_destroy(void) {
 
     if (pthread_mutex_destroy(&file_table_lock) != 0)
         return -1;
+
     if (pthread_mutex_destroy(&inode_table_lock) != 0)
         return -1;
+
     if (pthread_mutex_destroy(&data_block_table_lock) != 0)
         return -1;
+
     if (pthread_mutex_destroy(&dir_entries_table_lock) != 0)
         return -1;
 
@@ -203,6 +209,7 @@ int state_destroy(void) {
 static int inode_alloc(void) {
     if (pthread_mutex_lock(&inode_table_lock) != 0)
         return -1;
+
     for (size_t inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
         if ((inumber * sizeof(allocation_state_t) % BLOCK_SIZE) == 0) {
             insert_delay(); // simulate storage access delay (to freeinode_ts)
@@ -214,13 +221,13 @@ static int inode_alloc(void) {
             freeinode_ts[inumber] = TAKEN;
             if (pthread_mutex_unlock(&inode_table_lock) != 0)
                 return -1;
+                
             return (int)inumber;
         }
     }
 
     // no free inodes
-    if (pthread_mutex_unlock(&inode_table_lock) != 0)
-        return -1;
+    pthread_mutex_unlock(&inode_table_lock);
     return -1;
 }
 
@@ -248,6 +255,7 @@ int inode_create(inode_type i_type) {
     }
     if (pthread_rwlock_wrlock(&inode_table[inumber].inode_lock) != 0)
         return -1;
+
     inode_t *inode = &inode_table[inumber];
     insert_delay(); // simulate storage access delay (to inode)
 
@@ -292,6 +300,7 @@ int inode_create(inode_type i_type) {
 
     if (pthread_rwlock_unlock(&(inode_table[inumber].inode_lock)) != 0)
         return -1;
+
     return inumber;
 }
 
@@ -338,7 +347,7 @@ int inode_delete(int inumber) {
 inode_t *inode_get(int inumber) {
     ALWAYS_ASSERT(valid_inumber(inumber), "inode_get: invalid inumber");
 
-    insert_delay();               // simulate storage access delay to inode
+    insert_delay(); // simulate storage access delay to inode
     return &inode_table[inumber];
 }
 
@@ -360,6 +369,7 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
 
     if (pthread_rwlock_wrlock(&(inode->inode_lock)) != 0)
         return -1;
+
     if (inode->i_node_type != T_DIRECTORY) {
         pthread_rwlock_unlock(&(inode->inode_lock));
         return -1; // not a directory
@@ -367,6 +377,7 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
 
     if (pthread_mutex_lock(&data_block_table_lock) != 0)
         return -1;
+
     if (pthread_mutex_lock(&dir_entries_table_lock) != 0)
         return -1;
 
@@ -382,10 +393,13 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
 
             if (pthread_mutex_unlock(&dir_entries_table_lock) != 0)
                 return -1;
-            if (pthread_mutex_unlock(&data_block_table_lock) != 0) 
+
+            if (pthread_mutex_unlock(&data_block_table_lock) != 0)
                 return -1;
+
             if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
                 return -1;
+                
             return 0;
         }
     }
@@ -429,7 +443,7 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
     if (pthread_mutex_lock(&data_block_table_lock) != 0)
         return -1;
     if (pthread_mutex_lock(&dir_entries_table_lock) != 0)
-        return -1; 
+        return -1;
 
     // Locates the block containing the entries of the directory
     dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode->i_data_block);
