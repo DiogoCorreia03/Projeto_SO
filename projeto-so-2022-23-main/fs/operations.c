@@ -260,7 +260,6 @@ int tfs_link(char const *target, char const *link_name) {
     if (inode_unlock(root_dir_inode) != 0)
         return -1;
 
-
     inode_t *target_inode = inode_get(target_inumber);
     // if the target's inode is a sym link, return -1
     if (target_inode == NULL || target_inode->i_node_type == T_SYMB_LINK)
@@ -270,7 +269,7 @@ int tfs_link(char const *target, char const *link_name) {
         return -1;
     }
 
-    //increment the hard link counter of the target's inode
+    // increment the hard link counter of the target's inode
     target_inode->hard_link_counter++;
 
     return 0;
@@ -284,9 +283,12 @@ int tfs_close(int fhandle) {
         return -1; // invalid fd
     }
 
-    if (remove_from_open_file_table(fhandle) != 0)
+    if (remove_from_open_file_table(fhandle) != 0) {
+        open_file_unlock(fhandle);
         return -1;
+    }
 
+    open_file_unlock(fhandle);
     return 0;
 }
 
@@ -383,10 +385,10 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 /**
- * @brief 
- * 
- * @param target 
- * @return int 
+ * @brief
+ *
+ * @param target
+ * @return int
  */
 int tfs_unlink(char const *target) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
@@ -423,11 +425,11 @@ int tfs_unlink(char const *target) {
 }
 
 /**
- * @brief 
- * 
- * @param source_path 
- * @param dest_path 
- * @return int 
+ * @brief
+ *
+ * @param source_path
+ * @param dest_path
+ * @return int
  */
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     FILE *f_read = fopen(source_path, "r");
@@ -460,7 +462,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    //if f_read's size greter than data block's size, return -1
+    // if f_read's size greter than data block's size, return -1
     if (!feof(f_read)) {
         fclose(f_read);
         tfs_close(f_write);
