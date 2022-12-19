@@ -268,12 +268,15 @@ int tfs_link(char const *target, char const *link_name) {
 }
 
 int tfs_close(int fhandle) {
+    open_file_lock(fhandle);
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
+        open_file_unlock(fhandle);
         return -1; // invalid fd
     }
 
     remove_from_open_file_table(fhandle);
+    open_file_unlock(fhandle);
 
     return 0;
 }

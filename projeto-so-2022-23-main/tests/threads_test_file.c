@@ -65,8 +65,8 @@ int main(int argc, char* const argv[])
 
     tfs_read_thread(cenas1);
     for(int i = 0; i < 1000; i++){
-        switch(i%2){
-            case 5: 
+        switch(i%3){
+            case 2: 
                 printf("here close{%d}\n", i);
                 pthread_create(&thread_id[i], NULL,tfs_close_thread , (&new_file_fhandle));
                 break;
