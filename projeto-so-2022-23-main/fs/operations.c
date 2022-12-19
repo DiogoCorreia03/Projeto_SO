@@ -441,7 +441,8 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
 
-    if (!feof(f_read)) { // ficheiro maior q um 1k byte -> -1
+    //if f_read's size greter than data block's size, return -1
+    if (!feof(f_read)) {
         fclose(f_read);
         tfs_close(f_write);
         return -1;
