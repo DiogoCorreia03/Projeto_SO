@@ -252,7 +252,7 @@ int inode_create(inode_type i_type) {
             inode->i_data_block = -1;
             // run regular deletion process
             inode_delete(inumber);
-            pthread_rwlock_unlock(&(inode->inode_lock));
+            pthread_rwlock_unlock(&(inode_table[inumber].inode_lock));
             return -1;
         }
 
@@ -277,7 +277,7 @@ int inode_create(inode_type i_type) {
         PANIC("inode_create: unknown file type");
     }
 
-    pthread_rwlock_unlock(&(inode->inode_lock));
+    pthread_rwlock_unlock(&(inode_table[inumber].inode_lock));
     return inumber;
 }
 
@@ -345,8 +345,8 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
         return -1; // not a directory
     }
 
-    pthread_mutex_lock(&dir_entries_table_lock);
     pthread_mutex_lock(&data_block_table_lock);
+    pthread_mutex_lock(&dir_entries_table_lock);
 
     // Locates the block containing the entries of the directory
     dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode->i_data_block);
@@ -358,15 +358,15 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
             dir_entry[i].d_inumber = -1;
             memset(dir_entry[i].d_name, 0, MAX_FILE_NAME);
 
-            pthread_mutex_unlock(&data_block_table_lock);
             pthread_mutex_unlock(&dir_entries_table_lock);
+            pthread_mutex_unlock(&data_block_table_lock);
             pthread_rwlock_unlock(&(inode->inode_lock));
             return 0;
         }
     }
 
-    pthread_mutex_unlock(&data_block_table_lock);
     pthread_mutex_unlock(&dir_entries_table_lock);
+    pthread_mutex_unlock(&data_block_table_lock);
     pthread_rwlock_unlock(&(inode->inode_lock));
     return -1; // sub_name not found
 }
@@ -400,8 +400,8 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
         return -1; // not a directory
     }
 
-    pthread_mutex_lock(&dir_entries_table_lock);
     pthread_mutex_lock(&data_block_table_lock);
+    pthread_mutex_lock(&dir_entries_table_lock);
 
     // Locates the block containing the entries of the directory
     dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(inode->i_data_block);
@@ -415,15 +415,15 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
             strncpy(dir_entry[i].d_name, sub_name, MAX_FILE_NAME - 1);
             dir_entry[i].d_name[MAX_FILE_NAME - 1] = '\0';
 
-            pthread_mutex_unlock(&data_block_table_lock);
             pthread_mutex_unlock(&dir_entries_table_lock);
+            pthread_mutex_unlock(&data_block_table_lock);
             pthread_rwlock_unlock(&(inode->inode_lock));
             return 0;
         }
     }
 
-    pthread_mutex_unlock(&data_block_table_lock);
     pthread_mutex_unlock(&dir_entries_table_lock);
+    pthread_mutex_unlock(&data_block_table_lock);
     pthread_rwlock_unlock(&(inode->inode_lock));
     return -1; // no space for entry
 }
@@ -626,7 +626,7 @@ void inode_read_lock(inode_t *inode) {
 }
 
 void inode_unlock(inode_t *inode) {
-    pthread_rwlock_rdlock(&(inode->inode_lock));
+    pthread_rwlock_unlock(&(inode->inode_lock));
 }
 
 void open_file_lock(int fhandle) {
