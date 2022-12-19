@@ -76,7 +76,9 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
     name++;
     if (inode_read_lock(root_dir_inode) != 0)
         return -1;
+
     int inumber = find_in_dir(root_inode, name);
+
     if (inumber == -1) {
         inode_unlock(root_dir_inode);
         return -1;
@@ -145,6 +147,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         }
         if (inum_unlock(inum) != 0)
             return -1;
+
     } else if (mode & TFS_O_CREAT) {
         // The file does not exist; the mode specified that it should be created
         // Create inode
@@ -156,6 +159,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Add entry in the root directory
         if (inum_write_lock(inum) != 0)
             return -1;
+
         if (add_dir_entry(root_dir_inode, name + 1, inum) == -1) {
             inum_unlock(inum);
             inode_delete(inum);
@@ -252,7 +256,9 @@ int tfs_link(char const *target, char const *link_name) {
 
     if (inode_read_lock(root_dir_inode) != 0)
         return -1;
+
     int target_inumber = find_in_dir(root_dir_inode, target + 1);
+
     if (target_inumber == -1) {
         inode_unlock(root_dir_inode);
         return -1;
@@ -278,6 +284,7 @@ int tfs_link(char const *target, char const *link_name) {
 int tfs_close(int fhandle) {
     if (open_file_lock(fhandle) != 0)
         return -1;
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         open_file_unlock(fhandle);
@@ -291,13 +298,16 @@ int tfs_close(int fhandle) {
 
     if (open_file_unlock(fhandle) != 0)
         return -1;
+
     return 0;
 }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     if (open_file_lock(fhandle) != 0)
         return -1;
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
+
     if (file == NULL) {
         open_file_unlock(fhandle);
         return -1;
@@ -306,6 +316,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     //  From the open file table entry, we get the inode
     if (inum_write_lock(file->of_inumber) != 0)
         return -1;
+
     inode_t *inode = inode_get(file->of_inumber);
     ALWAYS_ASSERT(inode != NULL, "tfs_write: inode of open file deleted");
 
@@ -343,14 +354,17 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
     if (inum_unlock(file->of_inumber) != 0)
         return -1;
+
     if (open_file_unlock(fhandle) != 0)
         return -1;
+
     return (ssize_t)to_write;
 }
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     if (open_file_lock(fhandle) != 0)
         return -1;
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         open_file_unlock(fhandle);
@@ -360,6 +374,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     // From the open file table entry, we get the inode
     if (inum_write_lock(file->of_inumber) != 0)
         return -1;
+
     inode_t const *inode = inode_get(file->of_inumber);
     ALWAYS_ASSERT(inode != NULL, "tfs_read: inode of open file deleted");
 
@@ -381,8 +396,10 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     if (inum_unlock(file->of_inumber) != 0)
         return -1;
+
     if (open_file_unlock(fhandle) != 0)
         return -1;
+        
     return (ssize_t)to_read;
 }
 
