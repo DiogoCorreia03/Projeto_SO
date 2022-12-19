@@ -33,7 +33,6 @@ static pthread_mutex_t file_table_lock;
 static pthread_mutex_t inode_table_lock;
 static pthread_mutex_t data_block_table_lock;
 static pthread_mutex_t dir_entries_table_lock;
-static pthread_mutex_t open_lock; // lock para mexer no operations
 
 // Convenience macros
 #define INODE_TABLE_SIZE (fs_params.max_inode_count)
@@ -140,7 +139,6 @@ int state_init(tfs_params params) {
 
     pthread_mutex_init(&file_table_lock, NULL);
     pthread_mutex_init(&dir_entries_table_lock, NULL);
-    pthread_mutex_init(&open_lock, NULL);
 
     return 0;
 }
@@ -156,7 +154,6 @@ int state_destroy(void) {
     pthread_mutex_destroy(&inode_table_lock);
     pthread_mutex_destroy(&data_block_table_lock);
     pthread_mutex_destroy(&dir_entries_table_lock);
-    pthread_mutex_destroy(&open_lock);
 
     for (size_t i = 0; i < INODE_TABLE_SIZE; i++) {
         pthread_rwlock_destroy(&(inode_table[i].inode_lock));
@@ -649,7 +646,3 @@ int is_open_file(int target_inum) {
     pthread_mutex_unlock(&file_table_lock);
     return 0;
 }
-
-void file_open_unlock() { pthread_mutex_unlock(&open_lock); }
-
-void file_open_lock() { pthread_mutex_lock(&open_lock); }
