@@ -44,10 +44,6 @@ typedef struct {
     pthread_mutex_t open_file_lock;
 } open_file_entry_t;
 
-static inode_t *inode_table;
-static open_file_entry_t *open_file_table;
-static allocation_state_t *free_open_file_entries;
-
 int state_init(tfs_params);
 int state_destroy(void);
 
@@ -73,7 +69,19 @@ int open_file(int inum, char const *name, tfs_file_mode_t mode);
 
 int lookup(char const *name, inode_t const *root_inode);
 
-void open_file_unlock();
-void open_file_lock();
+void file_open_unlock();
+void file_open_lock();
+
+void inum_write_lock(int inum);
+void inum_read_lock(int inum);
+void inum_unlock(int inum);
+
+void inode_read_lock(inode_t *inode);
+void inode_unlock(inode_t *inode);
+
+void open_file_lock(int fhandle);
+void open_file_unlock(int fhandle);
+
+int is_open_file(int target_inum);
 
 #endif // STATE_H
