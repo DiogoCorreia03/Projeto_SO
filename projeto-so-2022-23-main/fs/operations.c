@@ -146,17 +146,20 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
+            file_open_unlock();
             return -1; // no space in inode table
         }
 
         // Add entry in the root directory
         if (add_dir_entry(root_dir_inode, name + 1, inum) == -1) {
             inode_delete(inum);
+            file_open_unlock();
             return -1; // no space in directory
         }
 
         offset = 0;
     } else {
+        file_open_unlock();
         return -1;
     }
 
@@ -250,7 +253,8 @@ int tfs_link(char const *target, char const *link_name) {
         inode_unlock(root_dir_inode);
         return -1;
     }
-    pthread_rwlock_rdlock(&(root_dir_inode->inode_lock));
+    inode_unlock(root_dir_inode);
+
 
     inode_t *target_inode = inode_get(target_inumber);
     // if the target's inode is a sym link, return -1
