@@ -69,8 +69,7 @@ void *close_file(void *arg) {
         assert(tfs_destroy() != -1);
 
     } else {
-        // Used to diagnose that tfs_destroy doesn't destroy
-        sleep(1); // before all files are closed
+        sleep(1); 
         assert(tfs_close(file_i - 1) == 0);
     }
 
