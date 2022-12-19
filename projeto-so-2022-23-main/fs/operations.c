@@ -116,7 +116,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                   "tfs_open: root dir inode must exist");
 
     // only one file can be open at a time
-    file_open_lock();
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
 
@@ -146,28 +145,25 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
-            file_open_unlock();
             return -1; // no space in inode table
         }
 
         // Add entry in the root directory
+        inum_write_lock(inum);
         if (add_dir_entry(root_dir_inode, name + 1, inum) == -1) {
+            inum_unlock(inum);
             inode_delete(inum);
-            file_open_unlock();
             return -1; // no space in directory
         }
 
         offset = 0;
+        inum_unlock(inum);
     } else {
-        file_open_unlock();
         return -1;
     }
-
-    int fhandle = add_to_open_file_table(inum, offset);
-    file_open_unlock();
     // Finally, add entry to the open file table and return the corresponding
     // handle
-    return fhandle;
+    return add_to_open_file_table(inum, offset);
     // Note: for simplification, if file was created with TFS_O_CREAT and there
     // is an error adding an entry to the open file table, the file is not
     // opened but it remains created
