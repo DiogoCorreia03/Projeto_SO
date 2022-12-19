@@ -276,7 +276,8 @@ int tfs_link(char const *target, char const *link_name) {
 }
 
 int tfs_close(int fhandle) {
-    open_file_lock(fhandle);
+    if (open_file_lock(fhandle) != 0)
+        return -1;
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         open_file_unlock(fhandle);
@@ -288,7 +289,8 @@ int tfs_close(int fhandle) {
         return -1;
     }
 
-    open_file_unlock(fhandle);
+    if (open_file_unlock(fhandle) != 0)
+        return -1;
     return 0;
 }
 
