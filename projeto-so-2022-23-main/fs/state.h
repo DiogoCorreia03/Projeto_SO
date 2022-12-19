@@ -50,7 +50,7 @@ int state_destroy(void);
 size_t state_block_size(void);
 
 int inode_create(inode_type n_type);
-void inode_delete(int inumber);
+int inode_delete(int inumber);
 inode_t *inode_get(int inumber);
 
 int clear_dir_entry(inode_t *inode, char const *sub_name);
@@ -58,29 +58,26 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber);
 int find_in_dir(inode_t const *inode, char const *sub_name);
 
 int data_block_alloc(void);
-void data_block_free(int block_number);
+int data_block_free(int block_number);
 void *data_block_get(int block_number);
 
 int add_to_open_file_table(int inumber, size_t offset);
-void remove_from_open_file_table(int fhandle);
+int remove_from_open_file_table(int fhandle);
 open_file_entry_t *get_open_file_entry(int fhandle);
 
 int open_file(int inum, char const *name, tfs_file_mode_t mode);
 
 int lookup(char const *name, inode_t const *root_inode);
 
-void file_open_unlock();
-void file_open_lock();
+int inum_write_lock(int inum);
+int inum_read_lock(int inum);
+int inum_unlock(int inum);
 
-void inum_write_lock(int inum);
-void inum_read_lock(int inum);
-void inum_unlock(int inum);
+int inode_read_lock(inode_t *inode);
+int inode_unlock(inode_t *inode);
 
-void inode_read_lock(inode_t *inode);
-void inode_unlock(inode_t *inode);
-
-void open_file_lock(int fhandle);
-void open_file_unlock(int fhandle);
+int open_file_lock(int fhandle);
+int open_file_unlock(int fhandle);
 
 int is_open_file(int target_inum);
 
