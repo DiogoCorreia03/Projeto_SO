@@ -571,7 +571,7 @@ int add_to_open_file_table(int inumber, size_t offset) {
 void remove_from_open_file_table(int fhandle) {
 
     pthread_mutex_lock(&file_table_lock);
-    pthread_mutex_lock(&(open_file_table[fhandle].open_file_lock));
+    //pthread_mutex_lock(&(open_file_table[fhandle].open_file_lock));
 
     ALWAYS_ASSERT(valid_file_handle(fhandle),
                   "remove_from_open_file_table: file handle must be valid");
@@ -581,7 +581,7 @@ void remove_from_open_file_table(int fhandle) {
 
     free_open_file_entries[fhandle] = FREE;
 
-    pthread_mutex_unlock(&open_file_table[fhandle].open_file_lock);
+    //pthread_mutex_unlock(&open_file_table[fhandle].open_file_lock);
     pthread_mutex_unlock(&file_table_lock);
 }
 
