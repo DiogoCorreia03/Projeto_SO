@@ -13,26 +13,26 @@ int main() {
     int fd = tfs_open(file_path, TFS_O_CREAT);
     assert(fd != -1);
 
-    const char write_contents[] = "Hello World!";
-
-    // Write to file
-    assert(tfs_write(fd, write_contents, sizeof(write_contents)));
-
     assert(tfs_close(fd) != -1);
 
     assert(tfs_link(file_path, link_path) != -1);
 
-    // Unlink file
-    assert(tfs_unlink(file_path) != -1);
-
-    // Create new file with the same name
     fd = tfs_open(link_path, TFS_O_CREAT);
     assert(fd != -1);
 
-    // Check if file still contains the correct data
-    char read_contents[sizeof(write_contents)];
-    assert(tfs_read(fd, read_contents, sizeof(read_contents)) != -1);
-    assert(strcmp(read_contents, write_contents) == 0);
+    // Try to unlink open file
+    assert(tfs_unlink(file_path) == -1);
+    assert(tfs_unlink(link_path) == -1);
+
+    // Close the file
+    fd = tfs_close(fd);
+    assert(fd != -1);
+
+    // Unlink now closed file
+    assert(tfs_unlink(link_path) != -1);
+    assert(tfs_unlink(file_path) != -1);
 
     printf("Successful test.\n");
+
+    return 0;
 }
