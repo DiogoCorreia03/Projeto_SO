@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+//apagar
 void *write_file(void *file_path){
     const char write_contents1[] = "Hello World!1";
     const char write_contents2[] = "Hello World!2";
