@@ -19,6 +19,8 @@ void *copy_from_external1(void *arg);
 
 int main() {
 
+    // test to check if copy_from_external works with threads
+
     pthread_t tid[THREAD_COUNT];
     pthread_t tid2[THREAD_COUNT];
     assert(tfs_init(NULL) != -1);
@@ -48,6 +50,7 @@ int main() {
         pthread_join(tid[i], NULL);
     }
 
+    // check if the copies to the same file (copy_from_external0) worked
     char buffer[1200];
     memset(buffer, 0, sizeof(buffer));
     memcpy(buffer, "BBB BBB", 7);
@@ -62,6 +65,7 @@ int main() {
 
     tfs_close(fhandle);
 
+    // check if the copies to different files (copy_from_external1) worked
     for (int i = 1; i < THREAD_COUNT; ++i) {
         table2[i] = i;
         switch (i % 2) {
@@ -89,6 +93,7 @@ int main() {
 }
 
 void *read_file(void *arg) {
+    // see if the file contents are what was expected
     int file_i = *((int *)arg);
 
     char path[MAX_LEN_FILE_NAME] = {"/f"};
@@ -112,6 +117,7 @@ void *read_file(void *arg) {
 }
 
 void *copy_from_external0(void *arg) {
+    // copy always to the same file
     (void)arg;
 
     char source[MAX_LEN_FILE_NAME] = {"tests/threads_external.txt"};
@@ -124,6 +130,7 @@ void *copy_from_external0(void *arg) {
 }
 
 void *copy_from_external1(void *arg) {
+    // copy to different files
     int file_i = *((int *)arg);
 
     char source[MAX_LEN_FILE_NAME] = {"tests/threads_external.txt"};

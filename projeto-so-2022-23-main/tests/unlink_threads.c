@@ -18,6 +18,8 @@ void *unlink_symlink(void *arg);
 
 int main() {
 
+    // test to check if linking / sym linking is thread safe
+
     pthread_t tid[THREAD_COUNT];
     assert(tfs_init(NULL) != -1);
     int table[THREAD_COUNT];
@@ -47,7 +49,6 @@ int main() {
     for (int i = 1; i < THREAD_COUNT; ++i) {
         pthread_join(tid[i], NULL);
     }
-
     printf("Successful test\n");
 
     return 0;

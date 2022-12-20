@@ -4,12 +4,11 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdlib.h>
-
 
 #define THREAD_COUNT 17
 #define MAX_LEN_FILE_NAME 10
@@ -18,6 +17,8 @@ void *create_file(void *arg);
 void *close_file(void *arg);
 
 int main() {
+
+    // test to see if opening and closing different files is thread safe
 
     pthread_t tid[THREAD_COUNT];
     assert(tfs_init(NULL) != -1);
@@ -69,7 +70,7 @@ void *close_file(void *arg) {
         assert(tfs_destroy() != -1);
 
     } else {
-        sleep(1); 
+        sleep(1);
         assert(tfs_close(file_i - 1) == 0);
     }
 
