@@ -429,7 +429,7 @@ int tfs_unlink(char const *target) {
 
     // if the target file is open, return -1
     int is_open = is_open_file(target_inum);
-    if (is_open != 0)
+    if ( == 1 )
         return -1;
 
     if (clear_dir_entry(root_dir_inode, target + 1) == -1)

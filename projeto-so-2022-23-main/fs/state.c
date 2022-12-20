@@ -373,11 +373,11 @@ inode_t *inode_get(int inumber) {
 int clear_dir_entry(inode_t *inode, char const *sub_name) {
     insert_delay();
 
-    if (pthread_rwlock_wrlock(&(inode->inode_lock)) != 0)
-        return -1;
+    //if (pthread_rwlock_wrlock(&(inode->inode_lock)) != 0)
+      //  return -1;
 
     if (inode->i_node_type != T_DIRECTORY) {
-        pthread_rwlock_unlock(&(inode->inode_lock));
+        //pthread_rwlock_unlock(&(inode->inode_lock));
         return -1; // not a directory
     }
 
@@ -403,8 +403,8 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
             if (pthread_mutex_unlock(&data_block_table_lock) != 0)
                 return -1;
 
-            if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
-                return -1;
+           // if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
+               // return -1;
                 
             return 0;
         }
@@ -412,7 +412,7 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
 
     pthread_mutex_unlock(&dir_entries_table_lock);
     pthread_mutex_unlock(&data_block_table_lock);
-    pthread_rwlock_unlock(&(inode->inode_lock));
+    //pthread_rwlock_unlock(&(inode->inode_lock));
     return -1; // sub_name not found
 }
 
@@ -438,11 +438,7 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
 
     insert_delay(); // simulate storage access delay to inode with inumber
 
-    if (pthread_rwlock_wrlock(&(inode->inode_lock)) != 0)
-        return -1;
-
     if (inode->i_node_type != T_DIRECTORY) {
-        pthread_rwlock_unlock(&(inode->inode_lock));
         return -1; // not a directory
     }
 
@@ -467,15 +463,12 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
                 return -1;
             if (pthread_mutex_unlock(&data_block_table_lock) != 0)
                 return -1;
-            if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
-                return -1;
             return 0;
         }
     }
 
     pthread_mutex_unlock(&dir_entries_table_lock);
     pthread_mutex_unlock(&data_block_table_lock);
-    pthread_rwlock_unlock(&(inode->inode_lock));
     return -1; // no space for entry
 }
 
