@@ -209,8 +209,11 @@ int tfs_sym_link(char const *target, char const *link_name) {
     if (link_inum == -1)
         return -1;
 
+    inum_write_lock(link_inum);
+
     inode_t *link = inode_get(link_inum);
     if (link == NULL) {
+        inum_unlock(link_inum);
         inode_delete(link_inum);
         return -1;
     }
@@ -218,6 +221,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
     // alloc new data block for the sym link inode
     int bnum = data_block_alloc();
     if (bnum == -1) {
+        inum_unlock(link_inum);
         inode_delete(link_inum);
         return -1;
     }
@@ -235,10 +239,12 @@ int tfs_sym_link(char const *target, char const *link_name) {
     link->i_size = sizeof(target) / sizeof(char const *);
 
     if (add_dir_entry(root_dir_inode, link_name + 1, link_inum) == -1) {
+        inum_unlock(link_inum);
         inode_delete(link_inum);
         return -1;
     }
 
+    inum_unlock(link_inum);
     return 0;
 }
 
@@ -254,17 +260,11 @@ int tfs_link(char const *target, char const *link_name) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_link: root dir inode must exist");
 
-    if (inode_read_lock(root_dir_inode) != 0)
-        return -1;
-
     int target_inumber = find_in_dir(root_dir_inode, target + 1);
 
     if (target_inumber == -1) {
-        inode_unlock(root_dir_inode);
         return -1;
     }
-    if (inode_unlock(root_dir_inode) != 0)
-        return -1;
 
     inode_t *target_inode = inode_get(target_inumber);
     // if the target's inode is a sym link, return -1
@@ -276,7 +276,9 @@ int tfs_link(char const *target, char const *link_name) {
     }
 
     // increment the hard link counter of the target's inode
+    inum_write_lock(target_inumber);
     target_inode->hard_link_counter++;
+    inum_unlock(target_inumber);
 
     return 0;
 }
@@ -399,7 +401,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     if (open_file_unlock(fhandle) != 0)
         return -1;
-        
+
     return (ssize_t)to_read;
 }
 
@@ -414,32 +416,43 @@ int tfs_unlink(char const *target) {
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_unlink: root dir inode must exist");
 
-    if (inode_read_lock(root_dir_inode) != 0)
-        return -1;
     int target_inum = find_in_dir(root_dir_inode, target + 1);
     if (target_inum == -1) {
-        inode_unlock(root_dir_inode);
         return -1;
     }
-    if (inode_unlock(root_dir_inode) != 0)
-        return -1;
+
     inode_t *target_inode = inode_get(target_inum);
-    if (target_inode == NULL || target_inode->i_node_type == T_DIRECTORY)
+    if (target_inode == NULL || target_inode->i_node_type == T_DIRECTORY) {
         return -1;
+    }
+
+    int inum = target_inum;
+    // if the target is a sym link, check if the associated file is open
+    if (target_inode->i_node_type == T_SYMB_LINK) {
+        inum = tfs_lookup(target, root_dir_inode);
+        if (inum == -1) {
+            return -1;
+        }
+    }
 
     // if the target file is open, return -1
-    int is_open = is_open_file(target_inum);
-    if (is_open != 0)
+    if (is_open_file(inum) != 0) {
         return -1;
+    }
 
-    if (clear_dir_entry(root_dir_inode, target + 1) == -1)
+    if (clear_dir_entry(root_dir_inode, target + 1) == -1) {
         return -1;
+    }
 
+    inum_write_lock(target_inum);
     target_inode->hard_link_counter--;
+    inum_unlock(target_inum);
 
-    if (target_inode->hard_link_counter == 0)
-        if (inode_delete(target_inum) != 0)
+    if (target_inode->hard_link_counter == 0) {
+        if (inode_delete(target_inum) != 0) {
             return -1;
+        }
+    }
 
     return 0;
 }

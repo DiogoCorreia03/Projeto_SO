@@ -47,6 +47,9 @@ void write_contents(char const *path) {
 }
 
 int main() {
+
+    // overrall test for sym / hard links
+
     assert(tfs_init(NULL) != -1);
 
     // ---------------criação e unlink de um hard link-----------------------------------

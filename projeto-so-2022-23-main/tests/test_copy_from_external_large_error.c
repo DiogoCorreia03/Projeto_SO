@@ -5,6 +5,9 @@
 
 int main() {
 
+    // testing what happens when the file to copy is larger than the block size
+    // (1024), should return -1
+
     char *path_copied_file = "/f1";
     char *path_src = "tests/large.txt";
     char buffer_path[8500];
@@ -21,8 +24,8 @@ int main() {
 
     f = tfs_open(path_copied_file, TFS_O_CREAT);
     assert(f != -1);
-    
-    FILE* fd = fopen(path_src, "r");
+
+    FILE *fd = fopen(path_src, "r");
 
     bytes_read = fread(buffer_path, sizeof(char), sizeof(path_src), fd);
 
@@ -33,5 +36,4 @@ int main() {
     printf("Successful test.\n");
 
     return 0;
-
 }

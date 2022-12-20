@@ -145,7 +145,7 @@ int state_init(tfs_params params) {
 
     if (pthread_mutex_init(&file_table_lock, NULL) != 0)
         return -1;
-        
+
     if (pthread_mutex_init(&dir_entries_table_lock, NULL) != 0)
         return -1;
 
@@ -336,7 +336,8 @@ int inode_delete(int inumber) {
 
     freeinode_ts[inumber] = FREE;
 
-    if (pthread_mutex_unlock(&inode_table_lock) != 0 || pthread_rwlock_unlock(&(inode_table[inumber].inode_lock)) != 0)
+    if (pthread_mutex_unlock(&inode_table_lock) != 0 ||
+        pthread_rwlock_unlock(&(inode_table[inumber].inode_lock)) != 0)
         return -1;
 
     return 0;
@@ -404,8 +405,8 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
                 return -1;
 
             if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
-                return -1;
-                
+               return -1;
+
             return 0;
         }
     }
@@ -438,11 +439,8 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
 
     insert_delay(); // simulate storage access delay to inode with inumber
 
-    if (pthread_rwlock_wrlock(&(inode->inode_lock)) != 0)
-        return -1;
 
     if (inode->i_node_type != T_DIRECTORY) {
-        pthread_rwlock_unlock(&(inode->inode_lock));
         return -1; // not a directory
     }
 
@@ -467,15 +465,12 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
                 return -1;
             if (pthread_mutex_unlock(&data_block_table_lock) != 0)
                 return -1;
-            if (pthread_rwlock_unlock(&(inode->inode_lock)) != 0)
-                return -1;
             return 0;
         }
     }
 
     pthread_mutex_unlock(&dir_entries_table_lock);
     pthread_mutex_unlock(&data_block_table_lock);
-    pthread_rwlock_unlock(&(inode->inode_lock));
     return -1; // no space for entry
 }
 
