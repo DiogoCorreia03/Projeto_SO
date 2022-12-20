@@ -315,22 +315,28 @@ int inode_delete(int inumber) {
     insert_delay();
     insert_delay();
 
-    ALWAYS_ASSERT(valid_inumber(inumber), "inode_delete: invalid inumber");
-
-    ALWAYS_ASSERT(freeinode_ts[inumber] == TAKEN,
-                  "inode_delete: inode already freed");
-
     if (pthread_rwlock_wrlock(&(inode_table[inumber].inode_lock)) != 0)
         return -1;
 
+    if (pthread_mutex_lock(&inode_table_lock) != 0)
+        return -1;
+
+    ALWAYS_ASSERT(valid_inumber(inumber), "inode_delete: invalid inumber");
+
+    ALWAYS_ASSERT(freeinode_ts[inumber] == TAKEN,
+                  "inode_delete: inode already freed")
+
     if (inode_table[inumber].i_size > 0) {
-        if (data_block_free(inode_table[inumber].i_data_block) != 0)
+        if (data_block_free(inode_table[inumber].i_data_block) != 0) {
+            pthread_mutex_unlock(&inode_table_lock);
+            pthread_rwlock_unlock(&(inode_table[inumber].inode_lock));
             return -1;
+        }
     }
 
     freeinode_ts[inumber] = FREE;
 
-    if (pthread_rwlock_unlock(&(inode_table[inumber].inode_lock)) != 0)
+    if (pthread_mutex_unlock(&inode_table_lock) != 0 || pthread_rwlock_unlock(&(inode_table[inumber].inode_lock)) != 0)
         return -1;
 
     return 0;
@@ -703,8 +709,9 @@ int is_open_file(int target_inum) {
     for (int i = 0; i < MAX_FILES; i++) {
         if (free_open_file_entries[i] == TAKEN &&
             open_file_table[i].of_inumber == target_inum) {
-            pthread_mutex_unlock(&file_table_lock);
-            return -1;
+            if (pthread_mutex_unlock(&file_table_lock) != 0)
+                return -1;
+            return 1;
         }
     }
     if (pthread_mutex_unlock(&file_table_lock) != 0)

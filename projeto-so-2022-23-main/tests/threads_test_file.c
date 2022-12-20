@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-
+//apagar
 void* tfs_write_thread(void* args){
     void** coisas = (void**)args;
 
