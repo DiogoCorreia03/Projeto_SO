@@ -8,8 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <pthread.h>
-
 
 /**
  * Directory entry
@@ -19,17 +17,17 @@ typedef struct {
     int d_inumber;
 } dir_entry_t;
 
-typedef enum { T_FILE, T_DIRECTORY, T_SYMB_LINK } inode_type;
+typedef enum { T_FILE, T_DIRECTORY } inode_type;
 
 /**
  * Inode
  */
 typedef struct {
     inode_type i_node_type;
-    int hard_link_counter;
+
     size_t i_size;
     int i_data_block;
-    pthread_rwlock_t inode_lock;
+
     // in a more complete FS, more fields could exist here
 } inode_t;
 
@@ -41,7 +39,6 @@ typedef enum { FREE = 0, TAKEN = 1 } allocation_state_t;
 typedef struct {
     int of_inumber;
     size_t of_offset;
-    pthread_mutex_t open_file_lock;
 } open_file_entry_t;
 
 int state_init(tfs_params);
@@ -50,7 +47,7 @@ int state_destroy(void);
 size_t state_block_size(void);
 
 int inode_create(inode_type n_type);
-int inode_delete(int inumber);
+void inode_delete(int inumber);
 inode_t *inode_get(int inumber);
 
 int clear_dir_entry(inode_t *inode, char const *sub_name);
@@ -58,27 +55,11 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber);
 int find_in_dir(inode_t const *inode, char const *sub_name);
 
 int data_block_alloc(void);
-int data_block_free(int block_number);
+void data_block_free(int block_number);
 void *data_block_get(int block_number);
 
 int add_to_open_file_table(int inumber, size_t offset);
-int remove_from_open_file_table(int fhandle);
+void remove_from_open_file_table(int fhandle);
 open_file_entry_t *get_open_file_entry(int fhandle);
-
-int open_file(int inum, char const *name, tfs_file_mode_t mode);
-
-int lookup(char const *name, inode_t const *root_inode);
-
-int inum_write_lock(int inum);
-int inum_read_lock(int inum);
-int inum_unlock(int inum);
-
-int inode_read_lock(inode_t *inode);
-int inode_unlock(inode_t *inode);
-
-int open_file_lock(int fhandle);
-int open_file_unlock(int fhandle);
-
-int is_open_file(int target_inum);
 
 #endif // STATE_H
