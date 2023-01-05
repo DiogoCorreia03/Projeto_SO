@@ -1,3 +1,7 @@
+/*
+*   Cliente
+*/
+
 #include "logging.h"
 
 static void print_usage() {
