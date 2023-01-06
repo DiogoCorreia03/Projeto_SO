@@ -515,3 +515,8 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
 
     return &open_file_table[fhandle];
 }
+
+//Sque não preciso disto
+int _open_file_entry_size() {
+    return sizeof(&open_file_table);
+}

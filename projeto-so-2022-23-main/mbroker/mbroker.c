@@ -26,7 +26,10 @@ int main(int argc, char **argv) {
 
     // veririficar q argv[1] e argv[2] são validos
 
-    tfs_init(NULL);
+    if (tfs_init(NULL) != 0) {
+        //erro
+    }
+
     char *server_pipe_name =
         argv[1]; // server pipe, main pipe onde todos os clients
                  // se ligam para comunicar com o server
@@ -54,7 +57,10 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    tfs_destroy();
+    if (tfs_destroy() != 0) {
+        //erro
+    }
+
     return 0;
     // WARN("unimplemented"); // TODO: implement
     // return -1;
