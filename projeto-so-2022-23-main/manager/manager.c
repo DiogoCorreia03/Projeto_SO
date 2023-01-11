@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         //erro
     }
 
-    if (argc != 5) {
+    if (argc != 5 || argc != 4) {
         //erro
     }
 
