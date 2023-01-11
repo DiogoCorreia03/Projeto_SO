@@ -28,32 +28,61 @@ int main(int argc, char **argv) {
         //erro
     }
 
-    //Não sei se são pointers ou não, HELP
     char *server_pipe_name = argv[1];  //nome do pipe do servidor
     char *session_pipe_name = argv[2]; //nome do pipe da sessão
     char *box_name = argv[4]; //nome da caixa aonde vai escrever
 
-
-    if (unlink(session_pipe_name) != 0) {
+    if (unlink(server_pipe_name) != 0) {
         fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", server_pipe_name,
                 strerror(errno));
         exit(EXIT_FAILURE);
     }
 
+    if (unlink(session_pipe_name) != 0) {
+        fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", session_pipe_name,
+                strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    //Ver permissões
+    if (mkfifo(server_pipe_name, 0777) != 0) {
+        fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    int server_pipe = open(server_pipe_name, O_WRONLY);
+    if (server_pipe == -1) {
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    } 
+
+
+
+    char *buffer[file_size()];
+    memset(buffer, 0, sizeof(buffer) / sizeof(char *));
+    int c, i = 0;
+    while (c = getchar() != EOF) {
+        while(c != '/n' || c != EOF){
+            buffer[i] = c;
+        }
+        if (c == '/n')
+            buffer[i] = c;
+    }
+    
+
+
     //Ver permissões
     if (mkfifo(session_pipe_name, 0777) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
-    }
+    }   
 
     int session_pipe = open(session_pipe_name, O_WRONLY);
 
     if (session_pipe == -1) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
-    }
-
-    //Já vejo o resto
+    } 
 
     if (tfs_destroy() != 0) {
         //erro
