@@ -21,7 +21,7 @@
 #define RESPONSE_INDEX (2)
 #define ERROR_MESSAGE_SIZE (1024)
 
-void register_box(char *server_pipe, char *session_pipe_name, char *box_name) {
+void box_request(char *server_pipe, char *session_pipe_name, char *box_name, u_int8_t code) {
     char client_named_pipe_path[MAX_CLIENT_NAME_PIPE_PATH], box_name_copy[MAX_BOX_NAME];
 
     memset(client_named_pipe_path, 0, MAX_CLIENT_NAME_PIPE_PATH);
@@ -40,7 +40,6 @@ void register_box(char *server_pipe, char *session_pipe_name, char *box_name) {
     memcpy(box_name_copy, box_name, strlen(box_name));
 
     char request[TOTAL_REGISTER_LENGTH];
-    u_int8_t code = 3;
     strcpy(request, (void*) code);
     strcat(request, client_named_pipe_path);
     strcat(request, box_name_copy);
@@ -76,8 +75,9 @@ int main(int argc, char **argv) {
     {
     case 'create':
         char *box_name = argv[4]; //nome da box que vai ser criada
+        u_int8_t code = 3;
 
-        register_box(server_pipe, session_pipe_name, box_name);
+        box_request(server_pipe, session_pipe_name, box_name, code);
 
         char *buffer;
         int session_pipe = open(session_pipe_name, O_RDONLY);
@@ -96,24 +96,42 @@ int main(int argc, char **argv) {
             if (tfs_open(box_name, O_CREAT) == -1) {   //cria uma caixa
             //erro
             }
-
             fprintf(stdout, "OK\n");
         }
         else {
             fprintf(stdout, "ERROR %s\n", error_message);
         }
-        
+
         break;
     
     case 'remove':
         char *box_name = argv[4]; //nome da box que vai ser removida
+        u_int8_t code = 5;
 
-        if (unlink(box_name) != 0) {
-            fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", box_name,
-                strerror(errno));
-        exit(EXIT_FAILURE);
+        char *buffer;
+        int session_pipe = open(session_pipe_name, O_RDONLY);
+        if (session_pipe == -1) {
+            fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
         }
-        //Já vejo
+
+        read(session_pipe, buffer, TOTAL_RESPONSE_LENGTH);
+        int32_t return_code;
+        char error_message;
+        memcpy(return_code, buffer + sizeof(u_int8_t), sizeof(u_int32_t));
+        memcpy(error_message, buffer + sizeof(u_int8_t) + sizeof(u_int32_t), ERROR_MESSAGE_SIZE);
+
+        if (return_code == 0) {
+            if (unlink(box_name) == -1) {
+            fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", box_name, strerror(errno));
+            exit(EXIT_FAILURE);
+            }
+            fprintf(stdout, "OK\n");
+        }
+        else {
+            fprintf(stdout, "ERROR %s\n", error_message);
+        }
+
         break;
 
     case 'list':
