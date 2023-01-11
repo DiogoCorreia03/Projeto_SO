@@ -7,11 +7,27 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+void main_thread(char *server_pipe_name) {
+
+    int server_pipe = open(server_pipe_name, O_RDONLY);
+    if (server_pipe == -1) {
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    
+}
+
+void working_thread() {
+
+}
 
 int main(int argc, char **argv) {
 
@@ -27,7 +43,7 @@ int main(int argc, char **argv) {
     // veririficar q argv[1] e argv[2] são validos
 
     if (tfs_init(NULL) != 0) {
-        //erro
+        // erro
     }
 
     char *server_pipe_name =
@@ -49,16 +65,24 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // FIXME mensagem/tratamento do erro, NONBLOCK? como fazer com q continue e
-    // não bloqueie no open() ou n é preciso continuar?
-    int server_pipe = open(server_pipe_name, O_RDONLY);
-    if (server_pipe == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+    // Create Main Thread
+    pthread_t main_t;
+    if (pthread_create(&main_t, NULL, main_thread, server_pipe_name) != 0) {
+        // erro
     }
 
+    // Create Working Threads for each session?
+    pthread_t sessions_tid[max_sessions];
+    for (int i = 0; i < max_sessions; i++) {
+        if (pthread_create(&sessions_tid[i], NULL, working_thread, NULL) != 0) {
+            // erro
+        }
+    }
+
+
+
     if (tfs_destroy() != 0) {
-        //erro
+        // erro
     }
 
     return 0;
