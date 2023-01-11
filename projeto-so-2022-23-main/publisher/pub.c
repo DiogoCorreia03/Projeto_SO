@@ -13,22 +13,22 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_PUBLISHER_NAME_PIPE_PATH (256)
+#define MAX_CLIENT_NAME_PIPE_PATH (256)
 #define MAX_BOX_NAME (32)
 #define TOTAL_REGISTER_LENGTH (289)
 #define TOTAL_MESSAGE_LENGTH (1025)
 
 void register_pub(char *server_pipe, char *session_pipe_name, char *box_name) {
-    char client_named_pipe_path[MAX_PUBLISHER_NAME_PIPE_PATH], box_name_copy[MAX_BOX_NAME];
+    char client_named_pipe_path[MAX_CLIENT_NAME_PIPE_PATH], box_name_copy[MAX_BOX_NAME];
 
-    memset(client_named_pipe_path, 0, MAX_PUBLISHER_NAME_PIPE_PATH);
+    memset(client_named_pipe_path, 0, MAX_CLIENT_NAME_PIPE_PATH);
     memset(box_name_copy, 0, MAX_BOX_NAME);
 
     int n_pipe_name_size = strlen(session_pipe_name);
     int n_box_name_size = strlen(box_name);
 
-    if (n_pipe_name_size > MAX_PUBLISHER_NAME_PIPE_PATH)
-        n_pipe_name_size = MAX_PUBLISHER_NAME_PIPE_PATH;
+    if (n_pipe_name_size > MAX_CLIENT_NAME_PIPE_PATH)
+        n_pipe_name_size = MAX_CLIENT_NAME_PIPE_PATH;
 
     if (n_box_name_size > MAX_BOX_NAME)
         n_box_name_size = MAX_BOX_NAME;
