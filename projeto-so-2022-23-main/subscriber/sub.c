@@ -1,7 +1,3 @@
-/*
- *   Cliente
- */
-
 #include "../fs/operations.h"
 #include "../utils/common.h"
 #include "logging.h"
@@ -15,7 +11,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-void register_sub(int server_pipe, char *session_pipe_name, char *box) {
+const volatile int running = FALSE;
+
+int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REGISTER_LENGTH, sizeof(char));
 
     memcpy(message, SUB_REGISTER, sizeof(uint8_t));
@@ -32,18 +30,19 @@ void register_sub(int server_pipe, char *session_pipe_name, char *box) {
     memcpy(message, box, box_n_bytes);
 
     if (write(server_pipe, message, REGISTER_LENGTH) == -1) {
-        // erro
+        WARN("Unnable to write message.\n");
+        free(message);
+        return -1;
     }
+
+    free(message);
+    return 0;
 }
 
 int main(int argc, char **argv) {
-
-    if (tfs_init(NULL) != 0) {
-        // erro
-    }
-
     if (argc != 4) {
-        // erro
+        WARN("Instead of 4 arguments, %d were passed.\n", argc);
+        return -1;
     }
 
     // FIXME
@@ -51,41 +50,38 @@ int main(int argc, char **argv) {
         // erro
     }
 
-    char *server_pipe_name = argv[1];  // nome do pipe do servidor
-    char *session_pipe_name = argv[2]; // nome do pipe da sessão
-    char *box_name = argv[4];          // nome da caixa aonde vai ler
+    char *server_pipe_name = argv[1];  // Server's Pipe name
+    char *session_pipe_name = argv[2]; // Session's Pipe name
+    char *box_name = argv[3];          // Box's name
 
     int server_pipe = open(server_pipe_name, O_WRONLY);
-    // FIXME erro
     if (server_pipe == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        WARN("Unable to open Server's Pipe.\n");
+        exit(EXIT_FAILURE); // FIXME ou return -1; ?
     }
 
-    // FIXME erro
-    if (unlink(session_pipe_name) != 0) {
-        fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", server_pipe_name,
-                strerror(errno));
-        exit(EXIT_FAILURE);
+    if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
+        WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
+        return -1;
     }
-    // Ver permissões  FIXME erro
+
     if (mkfifo(session_pipe_name, 0777) != 0) {
-        fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        WARN("Unnable to create Session's Pipe.\n");
+        return -1;
     }
 
-    register_sub(server_pipe, session_pipe_name, box_name);
+    if (register_sub(server_pipe, session_pipe_name, box_name) != 0) {
+        WARN("Unnable to register Session's Pipe in the Server.\n");
+        return -1;
+    }
 
     int session_pipe = open(session_pipe_name, O_RDONLY);
-    // FIXME erro
     if (session_pipe == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        WARN("Unnable to open Session's Pipe.\n");
+        return -1;
     }
 
-    if (tfs_destroy() != 0) {
-        // erro
-    }
+    while
 
     return 0;
 }
