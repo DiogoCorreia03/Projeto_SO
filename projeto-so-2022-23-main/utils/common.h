@@ -1,13 +1,18 @@
 #ifndef __UTILS_COMMON_H__
 #define __UTILS_COMMON_H__
 
-#define PIPE_NAME_LENGTH (256)
-#define BOX_NAME_LENGTH (32)
-#define REGISTER_LENGTH (289)
+#include <stdint.h>
+#include "../fs/operations.h"
+
+#define PIPE_NAME_LENGTH (256 * sizeof(char))
+#define BOX_NAME_LENGTH (32 * sizeof(char))
+#define UINT8_T_SIZE (sizeof(uint8_t))
+#define REGISTER_LENGTH (PIPE_NAME_LENGTH + BOX_NAME_LENGTH + UINT8_T_SIZE) // FIXME
 #define TOTAL_RESPONSE_LENGTH (1029)
 #define ERROR_MESSAGE_SIZE (1024)
-#define TRUE (0)
-#define FALSE (1)
+#define BLOCK_SIZE file_size()
+#define TRUE (1)
+#define FALSE (0)
 
 const uint8_t PUB_REGISTER = 1;
 const uint8_t SUB_REGISTER = 2;
