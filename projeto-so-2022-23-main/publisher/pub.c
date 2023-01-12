@@ -51,13 +51,7 @@ int main(int argc, char **argv) {
     char *session_pipe_name = argv[2]; // Session's Pipe name
     char *box_name = argv[3];          // Box's name
 
-    // Server's Pipe
-    int server_pipe = open(server_pipe_name, O_WRONLY);
-    if (server_pipe == -1) {
-        WARN("Unable to open Server's Pipe.\n");
-        return -1;
-    }
-
+    // Session's Pipe
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
         WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
         return -1;
@@ -65,12 +59,20 @@ int main(int argc, char **argv) {
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
         WARN("Unnable to create Session's Pipe.\n");
+        // FIXME é preciso dar tfs_destroy, close etc?
+        return -1;
+    }
+
+    // Server's Pipe
+    int server_pipe = open(server_pipe_name, O_WRONLY);
+    if (server_pipe == -1) {
+        WARN("Unable to open Server's Pipe.\n");
         return -1;
     }
 
     // Request to register the Publisher in the Server
     if (register_pub(server_pipe, session_pipe_name, box_name) != 0) {
-        WARN("Unnable to register Session's Pipe in the Server.\n");
+        WARN("Unnable to register this Session in the Server.\n");
         return -1;
     }
 
@@ -82,27 +84,27 @@ int main(int argc, char **argv) {
 
     char c = 'a';
     int i = 0;
-    size_t max_size = file_size();
-    char buffer[max_size];
-    memset(buffer, 0, max_size);
+    char buffer[BLOCK_SIZE];
+    memset(buffer, 0, BLOCK_SIZE);
 
     while (c = (char)getchar() != EOF) {
-        if (i < max_size - 1) {
+        if (i < BLOCK_SIZE - 1) {
             if (c == '\n') {
                 c = '\0';
-                i = max_size - 1;
+                i = BLOCK_SIZE - 1;
             }
             buffer[i] = c;
         }
 
-        if (i >= max_size - 1) {
-            if (write(session_pipe, buffer, max_size) == -1) {
+        if (i >= BLOCK_SIZE - 1) {
+            if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
                 WARN("Unnable to write message.\n");
                 return -1;
             }
-            // write message sent e mudar o write para funcao á parte para o por o codigo
+            // write message sent e mudar o write para funcao á parte para por
+            // o codigo uint8_t
             i = 0;
-            memset(buffer, 0, max_size);
+            memset(buffer, 0, BLOCK_SIZE);
         }
 
         i++;
@@ -110,11 +112,12 @@ int main(int argc, char **argv) {
 
     // Buffer has an written message (CTRL-D was pressed)
     if (strlen(buffer) > 0) {
-        if (write(session_pipe, buffer, max_size) == -1) {
+        if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
             WARN("Unnable to write message.\n");
             return -1;
         }
-        // write message sent e mudar o write para funcao á parte para o por o codigo
+        // write message sent e mudar o write para funcao á parte para o por o
+        // codigo
     }
 
     if (close(session_pipe) == -1) {
@@ -123,7 +126,7 @@ int main(int argc, char **argv) {
     }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
-        WARN("End of session unlink(%s) failed: %s\n", session_pipe_name,
+        WARN("End of session: Unlink(%s) failed: %s\n", session_pipe_name,
              strerror(errno));
         return -1;
     }

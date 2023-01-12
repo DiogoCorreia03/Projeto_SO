@@ -25,61 +25,66 @@ void working_thread() {}
 int main(int argc, char **argv) {
 
     if (argc != 3) {
-        // erro
+        WARN("Instead of 3 arguments, %d were passed.\n", argc);
+        return -1;
     }
 
     // veririficar q argv[1] e argv[2] são validos
 
+    // Statrt TFS
     if (tfs_init(NULL) != 0) {
-        // erro
+        WARN("Unnable to start TFS.\n");
+        return -1;
     }
 
-    char *server_pipe_name =
-        argv[1]; // server pipe, main pipe onde todos os clients
-                 // se ligam para comunicar com o server
+    // Server's Pipe
+    char *server_pipe_name = argv[1];
 
     char *c = '\0';
-
     long max_sessions = strtol(argv[2], &c, 10);
     if (errno != 0 || *c != '\0' || max_sessions > INT_MAX ||
         max_sessions < INT_MIN) {
         WARN("Invalid Max Sessions value.\n");
-        tfs_destroy();
+        tfs_destroy(); // FIXME
         return -1;
     }
 
-    // FIXME mensagem/tratamento do erro
     if (unlink(server_pipe_name) != 0 && errno != ENOENT) {
-        fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", server_pipe_name,
-                strerror(errno));
-        exit(EXIT_FAILURE);
+        WARN("Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
+        // FIXME é preciso dar tfs_destroy, close etc?
+        return -1;
     }
 
-    // FIXME mensagem/tratamento do erro
     if (mkfifo(server_pipe_name, 0777) != 0) {
-        fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        WARN("Unnable to create Server's Pipe.\n");
+        return -1;
     }
 
-    // Create Main Thread
-    pthread_t main_t;
-    if (pthread_create(&main_t, NULL, main_thread, server_pipe_name) != 0) {
-        // erro
-    }
-
-    // Create Working Threads for each session?
+    // Create Working Threads for each Session
     pthread_t sessions_tid[max_sessions];
     for (int i = 0; i < max_sessions; i++) {
         if (pthread_create(&sessions_tid[i], NULL, working_thread, NULL) != 0) {
-            // erro
+            WARN("Error creating Thread(%d)\n", i);
+            return -1;
         }
     }
 
+    int server_pipe = open(server_pipe_name, O_RDONLY); // FIXME
+
+    if (close(server_pipe) == -1) {
+        WARN("Error closing Server's Pipe.\n");
+        return -1;
+    }
+
+    if (unlink(server_pipe_name) == -1) {
+        WARN("Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
+        return -1;
+    }
+
     if (tfs_destroy() != 0) {
-        // erro
+        WARN("Error destroying TFS.\n");
+        return -1;
     }
 
     return 0;
-    // WARN("unimplemented"); // TODO: implement
-    // return -1;
 }
