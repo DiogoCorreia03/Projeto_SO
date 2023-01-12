@@ -1,9 +1,11 @@
 #ifndef __UTILS_COMMON_H__
-#ifndef __UTILS_COMMON_H__
+#define __UTILS_COMMON_H__
 
 #define PIPE_NAME_LENGTH (256)
 #define BOX_NAME_LENGTH (32)
-#define REGISTER_LENGTH (287)
+#define REGISTER_LENGTH (289)
+#define TOTAL_RESPONSE_LENGTH (1029)
+#define ERROR_MESSAGE_SIZE (1024)
 #define TRUE (0)
 #define FALSE (1)
 
@@ -18,4 +20,4 @@ const uint8_t LIST_BOX_A = 8;
 const uint8_t PUB_2_SERVER = 9;
 const uint8_t SERVER_2_SUB = 10;
 
-#endif /* __UTILS_COMMON_H__ */
+#endif // __UTILS_COMMON_H__
