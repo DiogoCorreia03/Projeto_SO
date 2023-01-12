@@ -1,7 +1,3 @@
-/*
- *   Servidor
- */
-
 #include "../fs/operations.h"
 #include "logging.h"
 #include <assert.h>
@@ -22,7 +18,7 @@ void main_thread(char *server_pipe_name) {
         exit(EXIT_FAILURE);
     }
 
-    
+
 }
 
 void working_thread() {
@@ -53,7 +49,7 @@ int main(int argc, char **argv) {
     int max_sessions = argv[2];
 
     // FIXME mensagem/tratamento do erro
-    if (unlink(server_pipe_name) != 0) {
+    if (unlink(server_pipe_name) != 0 && errno != ENOENT) {
         fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", server_pipe_name,
                 strerror(errno));
         exit(EXIT_FAILURE);

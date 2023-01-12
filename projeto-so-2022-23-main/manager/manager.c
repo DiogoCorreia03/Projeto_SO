@@ -1,7 +1,3 @@
-/*
-*   Cliente
-*/
-
 #include "string.h"
 #include "../fs/operations.h"
 #include "logging.h"

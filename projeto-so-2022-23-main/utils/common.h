@@ -3,7 +3,9 @@
 
 #define PIPE_NAME_LENGTH (256)
 #define BOX_NAME_LENGTH (32)
-#define REGISTER_LENGTH (289)
+#define REGISTER_LENGTH (287)
+#define TRUE (0)
+#define FALSE (1)
 
 const uint8_t PUB_REGISTER = 1;
 const uint8_t SUB_REGISTER = 2;
