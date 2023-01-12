@@ -13,6 +13,8 @@
 #define BLOCK_SIZE file_size()
 #define TRUE (1)
 #define FALSE (0)
+#define LIST_REQUEST (257)
+#define LIST_RESPONSE (58)
 
 const uint8_t PUB_REGISTER = 1;
 const uint8_t SUB_REGISTER = 2;
