@@ -15,6 +15,10 @@ const volatile int running = FALSE;
 
 int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REGISTER_LENGTH, sizeof(char));
+    if (message == NULL) {
+        WARN("Unnable to alloc memory to register Publisher.\n");
+        return -1;
+    }
 
     memcpy(message, SUB_REGISTER, sizeof(uint8_t));
     message += sizeof(uint8_t);
@@ -45,11 +49,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // FIXME
-    if (strcmp(argv[0], "sub") != 0) {
-        // erro
-    }
-
     char *server_pipe_name = argv[1];  // Server's Pipe name
     char *session_pipe_name = argv[2]; // Session's Pipe name
     char *box_name = argv[3];          // Box's name
@@ -57,7 +56,7 @@ int main(int argc, char **argv) {
     int server_pipe = open(server_pipe_name, O_WRONLY);
     if (server_pipe == -1) {
         WARN("Unable to open Server's Pipe.\n");
-        exit(EXIT_FAILURE); // FIXME ou return -1; ?
+        return -1;
     }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {

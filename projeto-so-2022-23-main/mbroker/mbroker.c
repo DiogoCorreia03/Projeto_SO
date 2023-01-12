@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,22 +18,13 @@ void main_thread(char *server_pipe_name) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-
-
 }
 
-void working_thread() {
-
-}
+void working_thread() {}
 
 int main(int argc, char **argv) {
 
     if (argc != 3) {
-        // erro
-    }
-
-    // FIXME?
-    if (strcmp(argv[0], "mbroker")) {
         // erro
     }
 
@@ -46,7 +38,15 @@ int main(int argc, char **argv) {
         argv[1]; // server pipe, main pipe onde todos os clients
                  // se ligam para comunicar com o server
 
-    int max_sessions = argv[2];
+    char *c = '\0';
+
+    long max_sessions = strtol(argv[2], &c, 10);
+    if (errno != 0 || *c != '\0' || max_sessions > INT_MAX ||
+        max_sessions < INT_MIN) {
+        WARN("Invalid Max Sessions value.\n");
+        tfs_destroy();
+        return -1;
+    }
 
     // FIXME mensagem/tratamento do erro
     if (unlink(server_pipe_name) != 0 && errno != ENOENT) {
@@ -74,8 +74,6 @@ int main(int argc, char **argv) {
             // erro
         }
     }
-
-
 
     if (tfs_destroy() != 0) {
         // erro

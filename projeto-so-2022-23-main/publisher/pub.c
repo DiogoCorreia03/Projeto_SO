@@ -13,6 +13,10 @@
 
 int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REGISTER_LENGTH, sizeof(char));
+    if (message == NULL) {
+        WARN("Unnable to alloc memory to register Publisher.\n");
+        return -1;
+    }
 
     memcpy(message, PUB_REGISTER, sizeof(uint8_t));
     message += sizeof(uint8_t);
@@ -51,7 +55,7 @@ int main(int argc, char **argv) {
     int server_pipe = open(server_pipe_name, O_WRONLY);
     if (server_pipe == -1) {
         WARN("Unable to open Server's Pipe.\n");
-        exit(EXIT_FAILURE); // FIXME ou return -1; ?
+        return -1;
     }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
