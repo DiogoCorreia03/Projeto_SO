@@ -6,6 +6,8 @@
 #define REGISTER_LENGTH (289)
 #define TOTAL_RESPONSE_LENGTH (1029)
 #define ERROR_MESSAGE_SIZE (1024)
+#define LIST_REQUEST (257)
+#define LIST_RESPONSE (58)
 #define TRUE (0)
 #define FALSE (1)
 
