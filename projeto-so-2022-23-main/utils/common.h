@@ -18,6 +18,7 @@
 #define FALSE (0)
 #define LIST_REQUEST (257)
 #define LIST_RESPONSE (58)
+#define QUEUE_CAPACITY (200) 
 
 const uint8_t PUB_REGISTER = 1;
 const uint8_t SUB_REGISTER = 2;
@@ -29,13 +30,17 @@ const uint8_t LIST_BOX_R = 7;
 const uint8_t LIST_BOX_A = 8;
 const uint8_t PUB_2_SERVER = 9;
 const uint8_t SERVER_2_SUB = 10;
-const uint32_t BOX_SUCCESS = 0;
-const uint32_t BOX_ERROR = -1;
+const int32_t BOX_SUCCESS = 0;
+const int32_t BOX_ERROR = -1;
 const uint8_t LAST_BOX = 1;
 
 typedef struct {
+    int session_pipe;
     char box_name[BOX_NAME_LENGTH];
-    int file_handle;
+} Client_Info;
+
+typedef struct {
+    char box_name[BOX_NAME_LENGTH];
     uint64_t box_size;
     uint64_t n_publishers;
     uint64_t n_subscribers;

@@ -24,7 +24,6 @@ int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
     }
 
     strcpy(new_node->box_name, box_name);
-    new_node->file_handle = file_handle;
     new_node->box_size = box_size;
     new_node->n_publishers = 0;
     new_node->n_subscribers = 0;
@@ -60,7 +59,6 @@ int insertionSort(Box *head, char *box_name, uint64_t box_size,
     }
 
     strcpy(new_node->box_name, box_name);
-    new_node->file_handle = 0;
     new_node->box_size = box_size;
     new_node->n_publishers = n_publishers;
     new_node->n_subscribers = n_subscribers;
