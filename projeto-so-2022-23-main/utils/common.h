@@ -27,4 +27,18 @@ const uint8_t LIST_BOX_A = 8;
 const uint8_t PUB_2_SERVER = 9;
 const uint8_t SERVER_2_SUB = 10;
 
+typedef struct{
+    char box_name[BOX_NAME_LENGTH];
+    int file_handle;
+    uint64_t box_size;
+    uint64_t n_publishers;
+    uint64_t n_subscribers;
+    struct Box *next;
+} Box;
+
+Box* getBox(struct Box *head, char *box_name);
+
+int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size);
+
 #endif // __UTILS_COMMON_H__
+
