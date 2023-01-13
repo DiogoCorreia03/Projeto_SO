@@ -12,14 +12,24 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int send_creation_answer(int session_pipe, int32_t return_code) {
+int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
     if (message == NULL) {
         WARN("Unnable to alloc memory to send Message.\n");
         return -1;
     }
+    
+    switch (op_code)
+    {
+    case BOX_CREATION_R:
+        memcpy(message, BOX_CREATION_A, UINT8_T_SIZE);
+        break;
 
-    memcpy(message, BOX_CREATION_A, UINT8_T_SIZE);
+    case BOX_REMOVAL_R:
+        memcpy(message, BOX_REMOVAL_A, UINT8_T_SIZE);
+
+        break;
+    }
     message += UINT8_T_SIZE;
 
     memcpy(message, return_code, sizeof(int32_t));
@@ -27,7 +37,7 @@ int send_creation_answer(int session_pipe, int32_t return_code) {
 
     if (return_code == BOX_ERROR) {
         char error_message[ERROR_MESSAGE_RESPONSE_SIZE];
-        memcpy(message, "ERROR: Unable to create Box.\n", ERROR_MESSAGE_RESPONSE_SIZE);
+        memcpy(message, "ERROR: Unable to process request.\n", ERROR_MESSAGE_RESPONSE_SIZE);
     }
 
     if (write(session_pipe, message, TOTAL_RESPONSE_LENGTH) == -1) {
@@ -37,6 +47,8 @@ int send_creation_answer(int session_pipe, int32_t return_code) {
     
     return 0;
 }
+
+
 
 int register_pub(char *buffer, struct Box *head) {
     char *session_pipe_name;
@@ -100,7 +112,7 @@ int register_sub(char *buffer, struct Box *head) {
     return 0;
 }
 
-int create_box(char *buffer, struct Box *head) {
+int create_box(char *buffer, struct Box *head, uint8_t op_code) {
     char *session_pipe_name;
     memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
     buffer += PIPE_NAME_LENGTH;
@@ -117,7 +129,7 @@ int create_box(char *buffer, struct Box *head) {
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
     if (fhandle == -1) {
         WARN("Unable to create Box %s.\n", box_name);
-        send_creation_answer(session_pipe, BOX_ERROR);
+        box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
 
@@ -126,7 +138,7 @@ int create_box(char *buffer, struct Box *head) {
         return -1;
     }
 
-    if (send_creation_answer(session_pipe, BOX_SUCCESS) == -1) {
+    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
         WARN("Unable to send answer to Session's Pipe.\n");
         return -1;
     }
@@ -134,7 +146,7 @@ int create_box(char *buffer, struct Box *head) {
     return 0;
 }
 
-int remove_box(char *buffer, struct Box *head) {
+int remove_box(char *buffer, struct Box *head, uint8_t op_code) {
     char *session_pipe_name;
     memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
     buffer += PIPE_NAME_LENGTH;
@@ -147,6 +159,24 @@ int remove_box(char *buffer, struct Box *head) {
         WARN("Unable to open Session's Pipe.\n");
         return -1;
     }
+
+    if (unlink(box_name) == -1) {
+        WARN("Unable to unlink Box %s.\n", box_name);
+        box_answer(session_pipe, BOX_ERROR, op_code);
+        return -1;
+    }
+
+    if(deleteBox(head, box_name) == -1) {
+        WARN("Unable to delete Box %s.\n", box_name);
+        return -1;
+    }
+
+    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
+        WARN("Unable to send answer to Session's Pipe.\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 
@@ -200,7 +230,7 @@ void working_thread(char *server_pipe) {
             return -1;
         }
 
-        if (create_box(buffer, head) != 0) {
+        if (create_box(buffer, head, op_code) != 0) {
             WARN("Unable to create box.\n");
             return -1;
         }
@@ -215,13 +245,22 @@ void working_thread(char *server_pipe) {
             return -1;
         }
 
-        if (remove_box(buffer, head) != 0) {
+        if (remove_box(buffer, head, op_code) != 0) {
             WARN("Unable to remove Box.\n");
             return -1;
         }
         break;
 
     case 7:
+        char *buffer;
+        memset(buffer, 0, PIPE_NAME_LENGTH);
+
+        if (read(server_pipe, buffer, PIPE_NAME_LENGTH) == -1) {
+            WARN("Unable to read Session's Pipe.\n");
+            return -1;
+        }
+
+        
 
         break;
     }
