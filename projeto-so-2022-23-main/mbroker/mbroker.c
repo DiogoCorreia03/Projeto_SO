@@ -1,4 +1,5 @@
 #include "../fs/operations.h"
+#include "../utils/common.h"
 #include "logging.h"
 #include <assert.h>
 #include <errno.h>
@@ -11,16 +12,161 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-void main_thread(char *server_pipe_name) {
+int register_pub(char *buffer, struct Box *head) {
+    char *session_pipe_name;
+    memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
+    buffer += PIPE_NAME_LENGTH;
 
-    int server_pipe = open(server_pipe_name, O_RDONLY);
-    if (server_pipe == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+    char *box_name;
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
+
+    int session_pipe = open(session_pipe_name, O_RDONLY);
+    if (session_pipe == -1) {
+        WARN("Unable to open Session's Pipe.\n");
+        return -1;
     }
+    
+    Box *box = getBox(head, box_name);
+    if (box == NULL) {
+        WARN("Box %s doesn't exist.\n", box_name);
+        return -1;
+    }
+
+    int fhandle = tfs_open(box_name, TFS_O_APPEND);    //Modo de abertura 
+    if (fhandle == -1) {
+        WARN("Unable to open Box %s.\n", box_name);
+        return -1;
+    }
+
+    box->file_handle = fhandle;
+
+    return 0;
 }
 
-void working_thread() {}
+int register_sub(char *buffer, struct Box *head) {
+    char *session_pipe_name;
+    memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
+    buffer += PIPE_NAME_LENGTH;
+
+    char *box_name;
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
+
+    int session_pipe = open(session_pipe_name, O_WRONLY);
+    if (session_pipe == -1) {
+        WARN("Unable to open Session's Pipe.\n");
+        return -1;
+    }
+    
+    Box *box = getBox(head, box_name);
+    if (box == NULL) {
+        WARN("Box %s doesn't exist.\n", box_name);
+        return -1;
+    }
+
+    int fhandle = tfs_open(box_name, TFS_O_TRUNC);   //Modo de abertura
+    if (fhandle == -1) {
+        WARN("Unable to open Box %s.\n", box_name);
+        return -1;
+    }
+
+    box->file_handle = fhandle;
+
+    return 0;
+}
+
+int create_box(char *buffer, struct Box *head) {
+    char *session_pipe_name;
+    memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
+    buffer += PIPE_NAME_LENGTH;
+
+    char *box_name;
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
+
+    int session_pipe = open(session_pipe_name, O_WRONLY);
+    if (session_pipe == -1) {
+        WARN("Unable to open Session's Pipe.\n");
+        return -1;
+    }
+
+    int fhandle = tfs_open(box_name, TFS_O_CREAT);
+    if (fhandle == -1) {
+        WARN("Unable to create Box %s.\n", box_name);
+        send_creation_answer(session_pipe, ERROR);
+        return -1;
+    }
+
+    if (insertBox(head, box_name, fhandle, BOX_NAME_LENGTH) == -1) {
+        WARN("Unable to insert Box %s.\n", box_name);
+        return -1;
+    }
+
+    send_creation_answer
+}
+
+
+
+void working_thread(char *server_pipe) {
+
+    Box *head = NULL;
+
+    u_int8_t *op_code;
+    if (read(server_pipe, op_code, UINT8_T_SIZE) == -1) {
+        WARN("Unable to read from Server's Pipe.\n");
+        return -1;
+    }
+
+    switch (*op_code) {
+    case 1:
+        char *buffer;
+        memset(buffer, 0, REGISTER_LENGTH - UINT8_T_SIZE);
+
+        if (read(server_pipe, buffer, REGISTER_LENGTH - UINT8_T_SIZE) == -1) {
+            WARN("Unable to read Session's Pipe.\n");
+            return -1;
+        }
+
+        if (register_pub(buffer, head) != 0) {
+            WARN("Unable to register publisher.\n");
+            return -1;
+        }
+        break;
+    
+    case 2:
+        char *buffer;
+        memset(buffer, 0, REGISTER_LENGTH - UINT8_T_SIZE);
+
+        if (read(server_pipe, buffer, REGISTER_LENGTH - UINT8_T_SIZE) == -1) {
+            WARN("Unable to read Session's Pipe.\n");
+            return -1;
+        }
+
+        if (register_sub(buffer, head) != 0) {
+            WARN("Unable to register subscriber.\n");
+            return -1;
+        }
+        break;
+
+    case 3:
+        char *buffer;
+        memset(buffer, 0, REGISTER_LENGTH - UINT8_T_SIZE);
+
+        if (read(server_pipe, buffer, REGISTER_LENGTH - UINT8_T_SIZE) == -1) {
+            WARN("Unable to read Session's Pipe.\n");
+            return -1;
+        }
+
+        create_box(buffer, head);
+        break;
+
+    case 5:
+
+        break;
+
+    case 7:
+
+        break;
+    }
+}
 
 int main(int argc, char **argv) {
 
@@ -70,6 +216,10 @@ int main(int argc, char **argv) {
     }
 
     int server_pipe = open(server_pipe_name, O_RDONLY); // FIXME
+    if (server_pipe == -1) {
+        WARN("Unable to open Server's Pipe.\n");
+        return -1;
+    }
 
     if (close(server_pipe) == -1) {
         WARN("Error closing Server's Pipe.\n");

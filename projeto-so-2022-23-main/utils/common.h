@@ -30,4 +30,18 @@ const uint32_t BOX_SUCCESS = 0;
 const uint32_t BOX_ERROR = -1;
 const uint8_t LAST_BOX = 1;
 
+typedef struct{
+    char box_name[BOX_NAME_LENGTH];
+    int file_handle;
+    uint64_t box_size;
+    uint64_t n_publishers;
+    uint64_t n_subscribers;
+    struct Box *next;
+} Box;
+
+Box* getBox(struct Box *head, char *box_name);
+
+int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size);
+
 #endif // __UTILS_COMMON_H__
+
