@@ -14,7 +14,7 @@
 int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unnable to alloc memory to register Publisher.\n");
+        WARN("Unable to alloc memory to register Publisher.\n");
         return -1;
     }
 
@@ -34,7 +34,7 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
-        WARN("Unnable to write message.\n");
+        WARN("Unable to write message.\n");
         free(message);
         return -1;
     }
@@ -46,7 +46,7 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
 int send_message(int session_pipe, char message) {
     void *to_send = calloc(MESSAGE_SIZE, sizeof(char));
     if (to_send == NULL) {
-        WARN("Unnable to alloc memory to send message.\n");
+        WARN("Unable to alloc memory to send message.\n");
         return -1;
     }
 
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     }
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
-        WARN("Unnable to create Session's Pipe.\n");
+        WARN("Unable to create Session's Pipe.\n");
         return -1;
     }
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
     // Request to register the Publisher in the Server
     if (register_pub(server_pipe, session_pipe_name, box_name) != 0) {
-        WARN("Unnable to register this Session in the Server.\n");
+        WARN("Unable to register this Session in the Server.\n");
         close(server_pipe);
         unlink(session_pipe_name);
         return -1;
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 
     int session_pipe = open(session_pipe_name, O_WRONLY);
     if (session_pipe == -1) {
-        WARN("Unnable to open Session's Pipe.\n");
+        WARN("Unable to open Session's Pipe.\n");
         close(server_pipe);
         unlink(session_pipe_name);
         return -1;
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 
         if (i >= BLOCK_SIZE - 1) {
             if (send_message(session_pipe, buffer) < 0) {
-                WARN("Unnable to write message.\n");
+                WARN("Unable to write message.\n");
                 pub_destroy(session_pipe, session_pipe_name, server_pipe);
                 return -1;
             }
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 /*// Buffer has an written message (CTRL-D was pressed)
     if (strlen(buffer) > 0) {
         if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
-            WARN("Unnable to write message.\n");
+            WARN("Unable to write message.\n");
             return -1;
         }
         // write message sent e mudar o write para funcao á parte para o por o

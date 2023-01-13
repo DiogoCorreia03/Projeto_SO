@@ -19,7 +19,7 @@ Box *getBox(Box *head, char *box_name) {
 int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
     Box *new_node = (Box *)malloc(sizeof(Box));
     if (new_node == NULL) {
-        WARN("Unnable to alloc memory to create Box.\n");
+        WARN("Unable to alloc memory to create Box.\n");
         return -1;
     }
 
@@ -55,7 +55,7 @@ int insertionSort(Box *head, char *box_name, uint64_t box_size,
                   uint64_t n_publishers, uint64_t n_subscribers) {
     Box *new_node = (Box *)malloc(sizeof(Box));
     if (new_node == NULL) {
-        WARN("Unnable to alloc memory to create Box.\n");
+        WARN("Unable to alloc memory to create Box.\n");
         return -1;
     }
 
