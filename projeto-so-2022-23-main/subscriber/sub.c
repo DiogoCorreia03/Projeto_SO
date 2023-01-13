@@ -19,7 +19,7 @@ void sigint_handler() { running = FALSE; }
 int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unnable to alloc memory to register Subscriber.\n");
+        WARN("Unable to alloc memory to register Subscriber.\n");
         return -1;
     }
 
@@ -39,7 +39,7 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
-        WARN("Unnable to write message.\n");
+        WARN("Unable to write message.\n");
         free(message);
         return -1;
     }
@@ -52,7 +52,7 @@ int read_message(int session_pipe, char *buffer) {
 
     void *message = calloc(MESSAGE_SIZE, sizeof(char));
     if (message == NULL) {
-        WARN("Unnable to alloc memory to read message.\n");
+        WARN("Unable to alloc memory to read message.\n");
         return -1;
     }
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
     }
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
-        WARN("Unnable to create Session's Pipe.\n");
+        WARN("Unable to create Session's Pipe.\n");
         return -1;
     }
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     }
 
     if (register_sub(server_pipe, session_pipe_name, box_name) != 0) {
-        WARN("Unnable to register this Session in the Server.\n");
+        WARN("Unable to register this Session in the Server.\n");
         close(server_pipe);
         unlink(session_pipe_name);
         return -1;
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
     int session_pipe = open(session_pipe_name, O_RDONLY);
     if (session_pipe == -1) {
-        WARN("Unnable to open Session's Pipe.\n");
+        WARN("Unable to open Session's Pipe.\n");
         close(server_pipe);
         unlink(session_pipe_name);
         return -1;
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     int message_counter = 0;
     char *buffer = calloc(BLOCK_SIZE, sizeof(char));
     if (buffer == NULL) {
-        WARN("Unnable to alloc memory to read message.\n");
+        WARN("Unable to alloc memory to read message.\n");
         sub_destroy(session_pipe, session_pipe_name, server_pipe);
         return -1;
     }

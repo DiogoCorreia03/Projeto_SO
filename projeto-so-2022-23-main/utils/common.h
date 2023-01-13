@@ -55,6 +55,4 @@ void destroy_list(Box *head);
 
 void print_list(Box *head);
 
-int deleteBox(struct Box *head, char *box_name);
-
 #endif // __UTILS_COMMON_H__

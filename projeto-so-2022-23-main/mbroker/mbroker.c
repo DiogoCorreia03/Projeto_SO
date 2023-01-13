@@ -15,7 +15,7 @@
 int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unnable to alloc memory to send Message.\n");
+        WARN("Unable to alloc memory to send Message.\n");
         return -1;
     }
     
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
 
     // Statrt TFS
     if (tfs_init(NULL) != 0) {
-        WARN("Unnable to start TFS.\n");
+        WARN("Unable to start TFS.\n");
         return -1;
     }
 
@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
     }
 
     if (mkfifo(server_pipe_name, 0777) != 0) {
-        WARN("Unnable to create Server's Pipe.\n");
+        WARN("Unable to create Server's Pipe.\n");
         return -1;
     }
 
