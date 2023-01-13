@@ -1,13 +1,14 @@
+#include "../utils/common.h"
+#include "../utils/logging.h"
+#include "string.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "../utils/common.h"
-#include "string.h"
 
-Box* getBox(struct Box *head, char *box_name) {
+Box *getBox(Box *head, char *box_name) {
     Box *current = head;
 
-    while(current != NULL) {
-        if (current->box_name == box_name) 
+    while (current != NULL) {
+        if (current->box_name == box_name)
             return current;
 
         current = current->next;
@@ -15,8 +16,12 @@ Box* getBox(struct Box *head, char *box_name) {
     return NULL;
 }
 
-int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size) {
-    Box *new_node = (struct Node *)malloc(sizeof(Box));
+int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
+    Box *new_node = (Box *)malloc(sizeof(Box));
+    if (new_node == NULL) {
+        WARN("Unnable to alloc memory to create Box.\n");
+        return -1;
+    }
 
     strcpy(new_node->box_name, box_name);
     new_node->file_handle = file_handle;
@@ -25,31 +30,68 @@ int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_si
     new_node->n_subscribers = 0;
     new_node->next = NULL;
 
+    if (head == NULL) {
+        head = new_node;
+        return 0;
+    }
+
     Box *current = head;
 
     while (current->next != NULL) {
         if (current->box_name == box_name) {
-            free(current);
+            free(new_node);
             return -1;
         }
 
         current = current->next;
     }
+
     current->next = new_node;
 
     return 0;
 }
 
-int deleteBox(struct Box *head, char *box_name) {
+int insertionSort(Box *head, char *box_name, uint64_t box_size,
+                  uint64_t n_publishers, uint64_t n_subscribers) {
+    Box *new_node = (Box *)malloc(sizeof(Box));
+    if (new_node == NULL) {
+        WARN("Unnable to alloc memory to create Box.\n");
+        return -1;
+    }
+
+    strcpy(new_node->box_name, box_name);
+    new_node->file_handle = 0;
+    new_node->box_size = box_size;
+    new_node->n_publishers = n_publishers;
+    new_node->n_subscribers = n_subscribers;
+    new_node->next = NULL;
+
+    if (head == NULL || strcmp(box_name, head->box_name) < 0) {
+        new_node->next = head;
+        head = new_node;
+    } else {
+        Box *current = head;
+        while (current->next != NULL &&
+               strcmp(box_name, current->next->box_name) > 0) {
+            current = current->next;
+        }
+        new_node->next = current->next;
+        current->next = new_node;
+    }
+
+    return 0;
+}
+
+int deleteBox(Box *head, char *box_name) {
     Box *curr = head;
     Box *prev = NULL;
 
-    while(curr != NULL && curr->box_name != box_name) {
+    while (curr != NULL && curr->box_name != box_name) {
         prev = curr;
         curr = curr->next;
     }
 
-    if(curr != NULL) {
+    if (curr != NULL) {
         if (prev != NULL)
             prev->next = curr->next;
 
@@ -62,4 +104,22 @@ int deleteBox(struct Box *head, char *box_name) {
     }
 
     return -1;
+}
+
+void destroy_list(Box *head) {
+    Box *current = head;
+    while (current != NULL) {
+        current = current->next;
+        free(current);
+    }
+}
+
+void print_list(Box *head) {
+    Box *current = head;
+    while (current != NULL) {
+        fprintf(stdout, "%s %zu %zu %zu\n", current->box_name,
+                current->box_size, current->n_publishers,
+                current->n_subscribers);
+        current = current->next;
+    }
 }

@@ -12,8 +12,16 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int box_request(char *server_pipe, char *session_pipe_name, char *box, uint8_t code) {
-    void *message = calloc(REGISTER_LENGTH, sizeof(char));
+int box_request(char *server_pipe, char *session_pipe_name, char *box,
+                uint8_t code) {
+
+    // Send the request to the Server
+
+    void *message = calloc(REQUEST_LENGTH, sizeof(char));
+    if (message == NULL) {
+        WARN("Unnable to alloc memory to request box action.\n");
+        return -1;
+    }
 
     memcpy(message, code, sizeof(uint8_t));
     message += sizeof(uint8_t);
@@ -28,7 +36,9 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box, uint8_t c
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
 
-    if (write(server_pipe, message, REGISTER_LENGTH) == -1) {
+    message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
+
+    if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
         WARN("Unnable to write message.\n");
         free(message);
         return -1;
@@ -50,12 +60,61 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
     memcpy(message, session_pipe_name, pipe_n_bytes);
 
     if (write(server_pipe, message, LIST_REQUEST) == -1) {
-        WARN("Unnable to write message.\n");
+        WARN("Unnable to write request message.\n");
         free(message);
         return -1;
     }
 
     free(message);
+
+    // Read the answer from the Server
+
+    void *buffer = calloc(LIST_RESPONSE, sizeof(char));
+    if (buffer == NULL) {
+        WARN("Unnable to alloc memory to request box action.\n");
+        return -1;
+    }
+
+    Box *head = NULL;
+
+    int flag = TRUE;
+    while (flag) {
+        read(session_pipe_name, buffer, LIST_RESPONSE);
+
+        uint8_t last;
+        memcpy(last, buffer, UINT8_T_SIZE);
+        buffer += UINT8_T_SIZE;
+
+        if (memcmp(last, BOX_ERROR, UINT8_T_SIZE) == 0) {
+            fprintf(stdout, "NO BOXES FOUND\n");
+            break;
+        } else if (memcmp(last, LAST_BOX, UINT8_T_SIZE) == 0) {
+            flag = FALSE;
+        }
+
+        char box_name[32];
+        memcpy(box_name, buffer, BOX_NAME_LENGTH);
+        buffer += BOX_NAME_LENGTH;
+
+        uint64_t box_size;
+        memcpy(box_size, buffer, sizeof(uint64_t));
+        buffer += sizeof(uint64_t);
+
+        uint64_t n_publishers;
+        memcpy(n_publishers, buffer, sizeof(uint64_t));
+        buffer += sizeof(uint64_t);
+
+        uint64_t n_subscribers;
+        memcpy(n_subscribers, buffer, sizeof(uint64_t));
+
+        if (insertionSort(head, box_name, box_size, n_publishers, n_subscribers) != 0) {
+            return -1;
+        }
+    }
+
+    print_list(head);
+    destroy_list(head);
+
     return 0;
 }
 
