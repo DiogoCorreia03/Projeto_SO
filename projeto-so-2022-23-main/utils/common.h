@@ -44,5 +44,7 @@ Box* getBox(struct Box *head, char *box_name);
 
 int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size);
 
+int deleteBox(struct Box *head, char *box_name);
+
 #endif // __UTILS_COMMON_H__
 
