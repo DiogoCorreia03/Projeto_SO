@@ -43,6 +43,26 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     return 0;
 }
 
+int send_message(int session_pipe, char message) {
+    void *to_send = calloc(MESSAGE_SIZE, sizeof(char));
+    if (to_send == NULL) {
+        WARN("Unnable to alloc memory to send message.\n");
+        return -1;
+    }
+
+    memcpy(to_send, PUB_2_SERVER, UINT8_T_SIZE);
+    to_send += UINT8_T_SIZE;
+
+    memcpy(to_send, message, strlen(message));
+    to_send -= UINT8_T_SIZE;
+
+    ssize_t bytes_written = write(session_pipe, to_send, MESSAGE_SIZE);
+
+    free(to_send);
+
+    return bytes_written;
+}
+
 int pub_destroy(int session_pipe, char *session_pipe_name, int server_pipe) {
 
     if (close(server_pipe) == -1) {
@@ -124,13 +144,11 @@ int main(int argc, char **argv) {
         }
 
         if (i >= BLOCK_SIZE - 1) {
-            if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
+            if (send_message(session_pipe, buffer) < 0) {
                 WARN("Unnable to write message.\n");
                 pub_destroy(session_pipe, session_pipe_name, server_pipe);
                 return -1;
             }
-            // FIXME write message sent e mudar o write para funcao á parte para
-            // por o codigo uint8_t
             i = 0;
             memset(buffer, 0, BLOCK_SIZE);
         }
@@ -138,7 +156,15 @@ int main(int argc, char **argv) {
         i++;
     }
 
-    /*// Buffer has an written message (CTRL-D was pressed)
+    if (pub_destroy(session_pipe, session_pipe_name, server_pipe) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+// FIXME
+/*// Buffer has an written message (CTRL-D was pressed)
     if (strlen(buffer) > 0) {
         if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
             WARN("Unnable to write message.\n");
@@ -147,10 +173,3 @@ int main(int argc, char **argv) {
         // write message sent e mudar o write para funcao á parte para o por o
         // codigo
     }*/
-
-    if (pub_destroy(session_pipe, session_pipe_name, server_pipe) != 0) {
-        return -1;
-    }
-
-    return 0;
-}

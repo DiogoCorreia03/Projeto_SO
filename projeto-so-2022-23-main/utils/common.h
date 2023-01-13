@@ -11,6 +11,7 @@
 #define TOTAL_RESPONSE_LENGTH (1029)
 #define ERROR_MESSAGE_SIZE (1024)
 #define BLOCK_SIZE file_size()
+#define MESSAGE_SIZE (BLOCK_SIZE + UINT8_T_SIZE)
 #define TRUE (1)
 #define FALSE (0)
 #define LIST_REQUEST (257)
