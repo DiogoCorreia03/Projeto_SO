@@ -124,10 +124,10 @@ void working_thread(pc_queue_t *queue, Box *head) {
             break;
 
         case 7:
-            char *buffer;
+            char *message;
             memset(buffer, 0, PIPE_NAME_LENGTH);
 
-            if (read(server_pipe, buffer, PIPE_NAME_LENGTH) == -1) {
+            if (read(server_pipe, message, PIPE_NAME_LENGTH) == -1) {
                 WARN("Unable to read Session's Pipe.\n");
                 return;
             }

@@ -30,8 +30,8 @@ const uint8_t LIST_BOX_R = 7;
 const uint8_t LIST_BOX_A = 8;
 const uint8_t PUB_2_SERVER = 9;
 const uint8_t SERVER_2_SUB = 10;
-const uint32_t BOX_SUCCESS = 0;
-const uint32_t BOX_ERROR = -1;
+const int32_t BOX_SUCCESS = 0;
+const int32_t BOX_ERROR = -1;
 const uint8_t LAST_BOX = 1;
 
 typedef struct {
