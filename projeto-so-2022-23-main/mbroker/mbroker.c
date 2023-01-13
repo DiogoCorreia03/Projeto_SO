@@ -17,10 +17,7 @@ Client_Info *register_client(void *buffer, int session_pipe, Box *head) {
 
     char box_name[BOX_NAME_LENGTH];
     memset(box_name, 0, BOX_NAME_LENGTH);
-    if (read(server_pipe, box_name, BOX_NAME_LENGTH) == -1) {
-        WARN("Unable to read request.\n");
-        return NULL;
-    }
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
 
     Client_Info *info = calloc(1, sizeof(Client_Info));
     if (info == NULL) {
@@ -42,31 +39,38 @@ int publisher(Client_Info *info, Box *head) {
     }
 
     Box *box = getBox(head, info->box_name);
+    if (box == NULL) {
+        WARN("Box not found.\n");
+        return -1;
+    }
+
     box->n_publishers++;
-    // FIXME box_size?
 
     int fd = tfs_open(info->box_name, TFS_O_APPEND);
     if (fd == -1) {
-        WARN("");
+        WARN("Unable to open TFS file.\n");
         box->n_publishers--;
         free(message);
         return -1;
     }
 
+    int bytes_written;
+
     while (TRUE) {
         if (read(info->session_pipe, message, MESSAGE_SIZE) <= 0) {
-            WARN("");
+            WARN("Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
             return -1;
         }
         message += UINT8_T_SIZE;
-        if (tfs_write(fd, message, strlen(message) + 1) == -1) {
-            WARN("");
+        if (bytes_written = tfs_write(fd, message, strlen(message) + 1) == -1) {
+            WARN("Error writing message into Box.\n");
             box->n_publishers--;
             free(message);
             return -1;
         }
+        box->box_size += bytes_written;
     }
 
     box->n_publishers--;
@@ -134,6 +138,8 @@ void working_thread(pc_queue_t *queue, Box *head) {
 
             break;
         }
+
+        free(buffer);
     }
 }
 
