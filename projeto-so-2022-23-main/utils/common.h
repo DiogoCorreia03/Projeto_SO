@@ -7,7 +7,7 @@
 #define PIPE_NAME_LENGTH (256 * sizeof(char))
 #define BOX_NAME_LENGTH (32 * sizeof(char))
 #define UINT8_T_SIZE (sizeof(uint8_t))
-#define REGISTER_LENGTH (PIPE_NAME_LENGTH + BOX_NAME_LENGTH + UINT8_T_SIZE) // FIXME
+#define REQUEST_LENGTH (PIPE_NAME_LENGTH + BOX_NAME_LENGTH + UINT8_T_SIZE) // FIXME
 #define TOTAL_RESPONSE_LENGTH (1029)
 #define ERROR_MESSAGE_SIZE (1024)
 #define BLOCK_SIZE file_size()
@@ -26,5 +26,8 @@ const uint8_t LIST_BOX_R = 7;
 const uint8_t LIST_BOX_A = 8;
 const uint8_t PUB_2_SERVER = 9;
 const uint8_t SERVER_2_SUB = 10;
+const uint32_t BOX_SUCCESS = 0;
+const uint32_t BOX_ERROR = -1;
+const uint8_t LAST_BOX = 1;
 
 #endif // __UTILS_COMMON_H__
