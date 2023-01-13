@@ -48,6 +48,26 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     return 0;
 }
 
+int read_message(int session_pipe, char *buffer) {
+
+    void *message = calloc(MESSAGE_SIZE, sizeof(char));
+    if (message == NULL) {
+        WARN("Unnable to alloc memory to read message.\n");
+        return -1;
+    }
+
+    if (read(session_pipe, message, MESSAGE_SIZE) <= 0) {
+        free(message);
+        return -1;
+    }
+
+    message += UINT8_T_SIZE;
+    memcpy(buffer, message, BLOCK_SIZE);
+    free(message);
+
+    return 0;
+}
+
 int sub_destroy(int session_pipe, char *session_pipe_name, int server_pipe) {
 
     if (close(server_pipe) == -1) {
@@ -112,22 +132,28 @@ int main(int argc, char **argv) {
     }
 
     signal(SIGINT, sigint_handler);
+
     int message_counter = 0;
-    char buffer[BLOCK_SIZE];
-    memset(buffer, 0, BLOCK_SIZE);
+    char *buffer = calloc(BLOCK_SIZE, sizeof(char));
+    if (buffer == NULL) {
+        WARN("Unnable to alloc memory to read message.\n");
+        sub_destroy(session_pipe, session_pipe_name, server_pipe);
+        return -1;
+    }
 
     while (running) {
-        if (read(session_pipe, buffer, BLOCK_SIZE) == -1) {
+        if (read_message(session_pipe, buffer) != 0) {
             WARN("Error reading messages from box.\n");
+            free(buffer);
             sub_destroy(session_pipe, session_pipe_name, server_pipe);
             return -1;
         }
-        // enviar mensagem
         fprintf(stdout, "%s", buffer);
         message_counter++;
     }
 
     fprintf(stderr, "Messages sent: %d\n", message_counter);
+    free(buffer);
 
     if (sub_destroy(session_pipe, session_pipe_name, server_pipe) != 0) {
         return -1;

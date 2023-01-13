@@ -69,7 +69,7 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box,
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
 
-    message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH); // FIXME pode ser só = 0; ?
+    message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
         WARN("Unnable to write message.\n");
@@ -130,7 +130,7 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
     message -= UINT8_T_SIZE;
 
     if (write(server_pipe, message, LIST_REQUEST) == -1) {
-        WARN("Unnable to write message.\n");
+        WARN("Unnable to write request message.\n");
         free(message);
         return -1;
     }
@@ -139,7 +139,12 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
 
     // Read the answer from the Server
 
-    char *buffer = calloc(LIST_RESPONSE, sizeof(char));
+    void *buffer = calloc(LIST_RESPONSE, sizeof(char));
+    if (buffer == NULL) {
+        WARN("Unnable to alloc memory to request box action.\n");
+        return -1;
+    }
+
     int flag = TRUE;
     while (flag) {
         read(session_pipe_name, buffer, LIST_RESPONSE);
@@ -170,8 +175,8 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         uint64_t n_subscribers;
         memcpy(n_subscribers, buffer, sizeof(uint64_t));
 
-        fprintf(stdout, "%s %zu %zu %zu\n", box_name, box_size, n_publishers,
-                n_subscribers);
+        /*fprintf(stdout, "%s %zu %zu %zu\n", box_name, box_size, n_publishers,
+                n_subscribers);*/
     }
 
     return 0;
