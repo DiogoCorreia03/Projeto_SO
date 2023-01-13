@@ -12,39 +12,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-typedef struct {
-    char name[100];
-    struct Node *next;
-    struct Node *prev;
-} Node;
-
-Node *head = NULL;
-
-void insert(char *name) {
-    Node *new_node = (struct Node *)malloc(sizeof(Node));
-    strcpy(new_node->name, name);
-    new_node->next = NULL;
-
-    if (head == NULL || strcmp(name, head->name) < 0) {
-        new_node->next = head;
-        if (head != NULL) {
-            head->prev = new_node;
-            head = new_node;
-        }
-    } else {
-        Node *current = head;
-        while (current->next != NULL && strcmp(name, current->next->name) > 0) {
-            current = current->next;
-        }
-        new_node->next = current->next;
-        new_node->prev = current;
-        if (current->next != NULL) {
-            current->next->prev = new_node;
-        }
-        current->next = new_node;
-    }
-}
-
 int box_request(char *server_pipe, char *session_pipe_name, char *box,
                 uint8_t code) {
 
@@ -145,6 +112,8 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         return -1;
     }
 
+    Box *head = NULL;
+
     int flag = TRUE;
     while (flag) {
         read(session_pipe_name, buffer, LIST_RESPONSE);
@@ -175,9 +144,13 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         uint64_t n_subscribers;
         memcpy(n_subscribers, buffer, sizeof(uint64_t));
 
-        /*fprintf(stdout, "%s %zu %zu %zu\n", box_name, box_size, n_publishers,
-                n_subscribers);*/
+        if (insertionSort(head, box_name, box_size, n_publishers, n_subscribers) != 0) {
+            return -1;
+        }
     }
+
+    print_list(head);
+    destroy_list(head);
 
     return 0;
 }
