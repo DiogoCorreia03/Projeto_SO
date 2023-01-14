@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-Box *getBox(Box *head, char *box_name) {
-    Box *current = head;
+struct Box *getBox(struct Box *head, char *box_name) {
+    struct Box *current = head;
 
     while (current != NULL) {
         if (current->box_name == box_name)
@@ -16,8 +16,8 @@ Box *getBox(Box *head, char *box_name) {
     return NULL;
 }
 
-int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
-    Box *new_node = (Box *)malloc(sizeof(Box));
+int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size) {
+    struct Box *new_node = (struct Box *)malloc(sizeof(struct Box));
     if (new_node == NULL) {
         WARN("Unable to alloc memory to create Box.\n");
         return -1;
@@ -34,7 +34,7 @@ int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
         return 0;
     }
 
-    Box *current = head;
+    struct Box *current = head;
 
     while (current->next != NULL) {
         if (current->box_name == box_name) {
@@ -50,9 +50,9 @@ int insertBox(Box *head, char *box_name, int file_handle, uint64_t box_size) {
     return 0;
 }
 
-int insertionSort(Box *head, char *box_name, uint64_t box_size,
+int insertionSort(struct Box *head, char *box_name, uint64_t box_size,
                   uint64_t n_publishers, uint64_t n_subscribers) {
-    Box *new_node = (Box *)malloc(sizeof(Box));
+    struct Box *new_node = (struct Box *)malloc(sizeof(struct Box));
     if (new_node == NULL) {
         WARN("Unable to alloc memory to create Box.\n");
         return -1;
@@ -68,7 +68,7 @@ int insertionSort(Box *head, char *box_name, uint64_t box_size,
         new_node->next = head;
         head = new_node;
     } else {
-        Box *current = head;
+        struct Box *current = head;
         while (current->next != NULL &&
                strcmp(box_name, current->next->box_name) > 0) {
             current = current->next;
@@ -80,9 +80,9 @@ int insertionSort(Box *head, char *box_name, uint64_t box_size,
     return 0;
 }
 
-int deleteBox(Box *head, char *box_name) {
-    Box *curr = head;
-    Box *prev = NULL;
+int deleteBox(struct Box *head, char *box_name) {
+    struct Box *curr = head;
+    struct Box *prev = NULL;
 
     while (curr != NULL && curr->box_name != box_name) {
         prev = curr;
@@ -104,16 +104,16 @@ int deleteBox(Box *head, char *box_name) {
     return -1;
 }
 
-void destroy_list(Box *head) {
-    Box *current = head;
+void destroy_list(struct Box *head) {
+    struct Box *current = head;
     while (current != NULL) {
         current = current->next;
         free(current);
     }
 }
 
-void print_list(Box *head) {
-    Box *current = head;
+void print_list(struct Box *head) {
+    struct Box *current = head;
     while (current != NULL) {
         fprintf(stdout, "%s %zu %zu %zu\n", current->box_name,
                 current->box_size, current->n_publishers,
