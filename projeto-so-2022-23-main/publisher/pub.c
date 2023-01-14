@@ -90,9 +90,16 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    char *server_pipe_name = argv[1];  // Server's Pipe name
-    char *session_pipe_name = argv[2]; // Session's Pipe name
-    char *box_name = argv[3];          // Box's name
+    // Server's Pipe name
+    char *server_pipe_name = argv[1];
+    // Session's Pipe name
+    char *session_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
+    // Box's name
+    char *box_name = argv[3];
+
+    memcpy(session_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
+    memcpy(session_pipe_name + strlen(PIPE_PATH), argv[2],
+           PIPE_NAME_LENGTH - strlen(PIPE_PATH));
 
     // Session's Pipe
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
