@@ -271,7 +271,7 @@ int list_box(int session_pipe, struct Box *head) {
     char *buffer;
     memset(buffer, 0, LIST_RESPONSE);
 
-    memcpy(buffer, LIST_RESPONSE, UINT8_T_SIZE);
+    memcpy(buffer, LIST_BOX_A, UINT8_T_SIZE);
     buffer += UINT8_T_SIZE;
 
     uint8_t last;
@@ -289,7 +289,7 @@ int list_box(int session_pipe, struct Box *head) {
         prev = current;
 
         memset(buffer, 0, LIST_RESPONSE);
-        memcpy(buffer, LIST_RESPONSE, UINT8_T_SIZE);
+        memcpy(buffer, LIST_BOX_A, UINT8_T_SIZE);
         buffer += UINT8_T_SIZE;
     }
 
