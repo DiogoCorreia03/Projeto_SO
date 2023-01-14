@@ -61,7 +61,7 @@ int read_message(int session_pipe, char *buffer) {
         return -1;
     }
 
-    //message += UINT8_T_SIZE;
+    message += UINT8_T_SIZE;
     memcpy(buffer, message, BLOCK_SIZE);
     free(message);
 
