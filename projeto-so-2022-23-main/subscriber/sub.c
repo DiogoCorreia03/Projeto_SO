@@ -12,9 +12,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-const uint8_t SUB_REGISTER = 2;
-const char *PIPE_PATH = "../tmp/";
-
 static volatile int running = TRUE;
 
 void sigint_handler() { running = FALSE; }
@@ -53,19 +50,19 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
 
 int read_message(int session_pipe, char *buffer) {
 
-    void *message = calloc(MESSAGE_SIZE, sizeof(char));
+    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read message.\n");
         return -1;
     }
 
-    if (read(session_pipe, message, MESSAGE_SIZE) <= 0) {
+    if (read(session_pipe, message, file_size() + UINT8_T_SIZE) <= 0) {
         free(message);
         return -1;
     }
 
     message += UINT8_T_SIZE;
-    memcpy(buffer, message, BLOCK_SIZE);
+    memcpy(buffer, message, file_size());
     free(message);
 
     return 0;
@@ -144,7 +141,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, sigint_handler);
 
     int message_counter = 0;
-    char *buffer = calloc(BLOCK_SIZE, sizeof(char));
+    char *buffer = calloc(file_size(), sizeof(char));
     if (buffer == NULL) {
         WARN("Unable to alloc memory to read message.\n");
         sub_destroy(session_pipe, session_pipe_name, server_pipe);

@@ -12,15 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-const uint8_t BOX_CREATION_R = 3;
-const uint8_t BOX_REMOVAL_R = 5;
-const uint8_t LIST_BOX_R = 7;
-const int32_t BOX_SUCCESS = 0;
-const int32_t BOX_ERROR = -1;
-const uint8_t LAST_BOX = 1;
-const char *PIPE_PATH = "../tmp/";
-
-int box_request(char *server_pipe, char *session_pipe_name, char *box,
+int box_request(int server_pipe, char *session_pipe_name, char *box,
                 uint8_t code) {
 
     // Send the request to the Server
@@ -31,16 +23,16 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box,
         return -1;
     }
 
-    memcpy(message, code, sizeof(uint8_t));
+    memcpy(message, &code, sizeof(uint8_t));
     message += UINT8_T_SIZE;
 
-    int pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
-                           ? PIPE_NAME_LENGTH
-                           : strlen(session_pipe_name);
+    size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
+                              ? PIPE_NAME_LENGTH
+                              : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
-    int box_n_bytes =
+    size_t box_n_bytes =
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
 
@@ -69,13 +61,13 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box,
     }
 
     int32_t return_code;
-    memcpy(return_code, buffer + sizeof(uint8_t), sizeof(int32_t));
+    memcpy(&return_code, buffer + sizeof(uint8_t), sizeof(int32_t));
 
     char error_message[ERROR_MESSAGE_SIZE];
     memcpy(error_message, buffer + sizeof(uint8_t) + sizeof(int32_t),
            ERROR_MESSAGE_SIZE);
 
-    if (memcmp(return_code, BOX_SUCCESS, sizeof(int32_t)) == 0) {
+    if (memcmp(&return_code, &BOX_SUCCESS, sizeof(int32_t)) == 0) {
         fprintf(stdout, "OK\n");
     } else {
         fprintf(stdout, "ERROR %s\n", error_message);
@@ -84,7 +76,7 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box,
     return 0;
 }
 
-int list_box_request(char *server_pipe, char *session_pipe_name) {
+int list_box_request(int server_pipe, char *session_pipe_name) {
 
     // Send the request to the Server
 
@@ -94,12 +86,12 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         return -1;
     }
 
-    memcpy(message, LIST_BOX_R, sizeof(uint8_t));
+    memcpy(message, &LIST_BOX_R, sizeof(uint8_t));
     message += UINT8_T_SIZE;
 
-    int pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
-                           ? PIPE_NAME_LENGTH
-                           : strlen(session_pipe_name);
+    size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
+                              ? PIPE_NAME_LENGTH
+                              : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
 
     message -= UINT8_T_SIZE;
@@ -120,23 +112,29 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         return -1;
     }
 
+    int session_pipe = open(session_pipe_name, O_RDONLY);
+    if (session_pipe == -1) {
+        WARN("Unable to open Session's Pipe.\n");
+        return -1;
+    }
+
     struct Box *head = NULL;
 
     int flag = TRUE;
     while (flag) {
-        if (read(session_pipe_name, buffer, LIST_RESPONSE) == -1) {
+        if (read(session_pipe, buffer, LIST_RESPONSE) == -1) {
             WARN("Unable to read Box list.\n");
             return -1;
         }
 
         uint8_t last;
-        memcpy(last, buffer, UINT8_T_SIZE);
+        memcpy(&last, buffer, UINT8_T_SIZE);
         buffer += UINT8_T_SIZE;
 
-        if (memcmp(last, BOX_ERROR, UINT8_T_SIZE) == 0) {
+        if (memcmp(&last, &BOX_ERROR, UINT8_T_SIZE) == 0) {
             fprintf(stdout, "NO BOXES FOUND\n");
             break;
-        } else if (memcmp(last, LAST_BOX, UINT8_T_SIZE) == 0) {
+        } else if (memcmp(&last, &LAST_BOX, UINT8_T_SIZE) == 0) {
             flag = FALSE;
         }
 
@@ -145,15 +143,15 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         buffer += BOX_NAME_LENGTH;
 
         uint64_t box_size;
-        memcpy(box_size, buffer, sizeof(uint64_t));
+        memcpy(&box_size, buffer, sizeof(uint64_t));
         buffer += sizeof(uint64_t);
 
         uint64_t n_publishers;
-        memcpy(n_publishers, buffer, sizeof(uint64_t));
+        memcpy(&n_publishers, buffer, sizeof(uint64_t));
         buffer += sizeof(uint64_t);
 
         uint64_t n_subscribers;
-        memcpy(n_subscribers, buffer, sizeof(uint64_t));
+        memcpy(&n_subscribers, buffer, sizeof(uint64_t));
 
         if (insertionSort(head, box_name, box_size, n_publishers,
                           n_subscribers) != 0) {
@@ -205,27 +203,23 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    switch (*request) {
-    case 'create':
+    if (strcmp(request, "create")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_CREATION_R) != 0) {
             WARN("Unable to create Box.\n");
             return -1;
         }
-        break;
-    case 'remove':
+    } else if (strcmp(request, "remove")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_REMOVAL_R) != 0) {
             WARN("Unable to remove Box.\n");
             return -1;
         }
-        break;
-    case 'list':
+    } else if (strcmp(request, "list")) {
         if (list_box_request(server_pipe, session_pipe_name) != 0) {
             WARN("Unable to list Boxes.\n");
             return -1;
         }
-        break;
     }
 
     return 0;

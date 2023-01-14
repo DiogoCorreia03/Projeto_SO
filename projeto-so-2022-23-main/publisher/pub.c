@@ -11,10 +11,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-const uint8_t PUB_REGISTER = 1;
-const uint8_t PUB_2_SERVER = 9;
-const char *PIPE_PATH = "../tmp/";
-
 int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
@@ -22,16 +18,16 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
         return -1;
     }
 
-    memcpy(message, PUB_REGISTER, sizeof(uint8_t));
+    memcpy(message, &PUB_REGISTER, sizeof(uint8_t));
     message += UINT8_T_SIZE;
 
-    int pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
+    size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
                            ? PIPE_NAME_LENGTH
                            : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
-    int box_n_bytes =
+    size_t box_n_bytes =
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
 
@@ -47,20 +43,20 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     return 0;
 }
 
-int send_message(int session_pipe, char message) {
-    void *to_send = calloc(MESSAGE_SIZE, sizeof(char));
+ssize_t send_message(int session_pipe, char *message) {
+    void *to_send = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
     if (to_send == NULL) {
         WARN("Unable to alloc memory to send message.\n");
         return -1;
     }
 
-    memcpy(to_send, PUB_2_SERVER, UINT8_T_SIZE);
+    memcpy(to_send, &PUB_2_SERVER, UINT8_T_SIZE);
     to_send += UINT8_T_SIZE;
 
     memcpy(to_send, message, strlen(message));
     to_send -= UINT8_T_SIZE;
 
-    ssize_t bytes_written = write(session_pipe, to_send, MESSAGE_SIZE);
+    ssize_t bytes_written = write(session_pipe, to_send, file_size() + UINT8_T_SIZE);
 
     free(to_send);
 
@@ -141,27 +137,27 @@ int main(int argc, char **argv) {
     }
 
     char c = 'a';
-    int i = 0;
-    char buffer[BLOCK_SIZE];
-    memset(buffer, 0, BLOCK_SIZE);
+    size_t i = 0;
+    char buffer[file_size()];
+    memset(buffer, 0, file_size());
 
-    while (c = (char)getchar() != EOF) {
-        if (i < BLOCK_SIZE - 1) {
+    while ((c = (char)getchar()) != EOF) {
+        if (i < file_size() - 1) {
             if (c == '\n') {
                 c = '\0';
-                i = BLOCK_SIZE - 1;
+                i = file_size() - 1;
             }
             buffer[i] = c;
         }
 
-        if (i >= BLOCK_SIZE - 1) {
+        if (i >= file_size() - 1) {
             if (send_message(session_pipe, buffer) < 0) {
                 WARN("Unable to write message.\n");
                 pub_destroy(session_pipe, session_pipe_name, server_pipe);
                 return -1;
             }
             i = 0;
-            memset(buffer, 0, BLOCK_SIZE);
+            memset(buffer, 0, file_size());
         }
 
         i++;

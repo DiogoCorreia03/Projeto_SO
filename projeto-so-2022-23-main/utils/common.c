@@ -27,6 +27,7 @@ int insertBox(struct Box *head, char *box_name, uint64_t box_size) {
     new_node->box_size = box_size;
     new_node->n_publishers = 0;
     new_node->n_subscribers = 0;
+    new_node->last = 1;
     new_node->next = NULL;
 
     if (head == NULL) {
@@ -45,6 +46,7 @@ int insertBox(struct Box *head, char *box_name, uint64_t box_size) {
         current = current->next;
     }
 
+    current->last = 0;
     current->next = new_node;
 
     return 0;
@@ -63,6 +65,7 @@ int insertionSort(struct Box *head, char *box_name, uint64_t box_size,
     new_node->n_publishers = n_publishers;
     new_node->n_subscribers = n_subscribers;
     new_node->next = NULL;
+    new_node->last = 0;
 
     if (head == NULL || strcmp(box_name, head->box_name) < 0) {
         new_node->next = head;
@@ -104,20 +107,23 @@ int deleteBox(struct Box *head, char *box_name) {
     return -1;
 }
 
-void box_to_string(struct Box *box, char *buffer, uint8_t last) {
-    memcpy(buffer, last, UINT8_T_SIZE);
+void box_to_string(struct Box *box, char *buffer) {
+    memcpy(buffer, &box->last, UINT8_T_SIZE);
     buffer += UINT8_T_SIZE;
 
-    memcpy(buffer, box->box_name, BOX_NAME_LENGTH);
+    memcpy(buffer, &box->box_name, BOX_NAME_LENGTH);
     buffer += BOX_NAME_LENGTH;
 
-    memcpy(buffer, box->box_size, sizeof(uint64_t));
+    memcpy(buffer, &box->box_size, sizeof(uint64_t));
     buffer += sizeof(uint64_t);
 
-    memcpy(buffer, box->n_publishers, sizeof(uint64_t));
+    memcpy(buffer, &box->n_publishers, sizeof(uint64_t));
     buffer += sizeof(uint64_t);
 
-    memcpy(buffer, box->n_subscribers, sizeof(uint64_t));
+    memcpy(buffer, &box->n_subscribers, sizeof(uint64_t));
+
+    buffer -= (UINT8_T_SIZE + BOX_NAME_LENGTH +
+               sizeof(uint64_t) + sizeof(uint64_t));
 }
 
 void destroy_list(struct Box *head) {
