@@ -61,7 +61,7 @@ int read_message(int session_pipe, char *buffer) {
         return -1;
     }
 
-    message += UINT8_T_SIZE;
+    //message += UINT8_T_SIZE;
     memcpy(buffer, message, BLOCK_SIZE);
     free(message);
 
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
             sub_destroy(session_pipe, session_pipe_name, server_pipe);
             return -1;
         }
-        fprintf(stdout, "%s", buffer);
+        fprintf(stdout, "%s\n", buffer);
         message_counter++;
     }
 

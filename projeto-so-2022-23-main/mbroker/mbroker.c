@@ -78,7 +78,51 @@ int publisher(Client_Info *info, Box *head) {
     return 0;
 }
 
-void working_thread(pc_queue_t *queue, Box *head) {
+int subscriber(Client_Info *info, Box *head) {
+    void *message = calloc(MESSAGE_SIZE, sizeof(char));
+    if (message == NULL) {
+        WARN(".\n");
+        return -1;
+    }
+
+    Box *box = getBox(head, info->box_name);
+    if (box == NULL) {
+        WARN("Box not found.\n");
+        return -1;
+    }
+
+    box->n_subscribers++;
+
+    int fd = tfs_open(info->box_name, TFS_O_TRUNC);
+    if (fd == -1) {
+        WARN("Unable to open TFS file.\n");
+        box->n_subscribers--;
+        free(message);
+        return -1;
+    }
+
+    while (TRUE) {
+        if (tfs_read(fd, message, BLOCK_SIZE) == -1) {
+            WARN("Unable to read message from Box.\n");
+            box->n_subscribers--;
+            free(message);
+            return -1;
+        }
+
+        if (write(info->session_pipe, message, strlen(message) + 1)) {
+            WARN("Unable to write in Session's Pipe.\n");
+            box->n_subscribers--;
+            free(message);
+            return -1;
+        }
+    }
+    
+    box->n_subscribers--;
+    free(message);
+    return 0;
+}
+
+void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
     int run = TRUE;
     while (run) {
         void *buffer = calloc(REQUEST_LENGTH, sizeof(char));
@@ -103,27 +147,38 @@ void working_thread(pc_queue_t *queue, Box *head) {
 
         switch (op_code) {
         case 1:
-            Client_Info *info =
-                register_client(buffer, session_pipe, head);
+            Client_Info *info = register_client(buffer, session_pipe, head);
             if (info == NULL) {
                 WARN("Unable to register publisher.\n");
                 return;
             }
-            publisher(info, head);
+            if (publisher(info, head) == -1) {
+                WARN("Publisher unable to write.\n")
+                return -1;
+            }
             break;
+
         case 2:
             if (register_client(buffer, session_pipe, head) == NULL) {
                 WARN("Unable to register subscriber.\n");
                 return;
             }
-            subscriber();
+            if (subscriber(info, head) == -1) {
+                WARN("Subscriber unable to read.\n");
+                return -1;
+            }
             break;
 
         case 3:
+            if (create_box(buffer,session_pipe, head, op_code) == -1) {
+                WARN("Unable to create Box-\n");
+                return -1;
+            }
+
         case 5:
-            if (box_request() != 0) {
-                WARN("Unable to process Box request.\n");
-                return;
+            if (remove_box(session_pipe, buffer, head, op_code) == -1) {
+                WARN("Unable to remove Box.\n");
+                return -1;
             }
             break;
 
@@ -314,19 +369,11 @@ int main(int argc, char **argv) {
 
         */
 
-int create_box(char *buffer, struct Box *head, uint8_t op_code) {
-    char *session_pipe_name;
-    memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
-    buffer += PIPE_NAME_LENGTH;
+int create_box(int session_pipe, void *buffer, Box *head, uint8_t op_code) {
 
-    char *box_name;
+    char box_name[BOX_NAME_LENGTH];
+    memset(box_name, 0, BOX_NAME_LENGTH);
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
-
-    int session_pipe = open(session_pipe_name, O_WRONLY);
-    if (session_pipe == -1) {
-        WARN("Unable to open Session's Pipe.\n");
-        return -1;
-    }
 
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
     if (fhandle == -1) {
@@ -348,19 +395,11 @@ int create_box(char *buffer, struct Box *head, uint8_t op_code) {
     return 0;
 }
 
-int remove_box(char *buffer, struct Box *head, uint8_t op_code) {
-    char *session_pipe_name;
-    memcpy(session_pipe_name, buffer, PIPE_NAME_LENGTH);
-    buffer += PIPE_NAME_LENGTH;
+int remove_box(int session_pipe, void *buffer, Box *head, uint8_t op_code) {
 
-    char *box_name;
+    char box_name[BOX_NAME_LENGTH];
+    memset(box_name, 0, BOX_NAME_LENGTH);
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
-
-    int session_pipe = open(session_pipe_name, O_WRONLY);
-    if (session_pipe == -1) {
-        WARN("Unable to open Session's Pipe.\n");
-        return -1;
-    }
 
     if (unlink(box_name) == -1) {
         WARN("Unable to unlink Box %s.\n", box_name);
@@ -385,6 +424,7 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to send Message.\n");
+        free(message);
         return -1;
     }
 
@@ -411,8 +451,10 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
 
     if (write(session_pipe, message, TOTAL_RESPONSE_LENGTH) == -1) {
         WARN("Unable to write in Session's Pipe.\n");
+        free(message);
         return -1;
     }
 
+    free(message);
     return 0;
 }
