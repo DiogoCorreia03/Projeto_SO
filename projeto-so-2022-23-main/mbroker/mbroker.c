@@ -31,16 +31,20 @@ Client_Info *register_client(void *buffer, int session_pipe) {
     return info;
 }
 
-int publisher(Client_Info *info, Box *head) {
+int publisher(Client_Info *info, struct Box *head) {
     void *message = calloc(MESSAGE_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read Publisher's message.\n");
         return -1;
     }
 
-    Box *box = getBox(head, info->box_name);
+    struct Box *box = getBox(head, info->box_name);
     if (box == NULL) {
         WARN("Box not found.\n");
+        return -1;
+    }
+
+    if (box->n_publishers != 0) {
         return -1;
     }
 
@@ -54,7 +58,7 @@ int publisher(Client_Info *info, Box *head) {
         return -1;
     }
 
-    int bytes_written;
+    uint64_t bytes_written;
 
     while (TRUE) {
         if (read(info->session_pipe, message, MESSAGE_SIZE) <= 0) {
@@ -64,13 +68,17 @@ int publisher(Client_Info *info, Box *head) {
             return -1;
         }
         message += UINT8_T_SIZE;
-        if (bytes_written = tfs_write(fd, message, strlen(message) + 1) == -1) {
+        if ((bytes_written =
+                 (uint64_t)tfs_write(fd, message, strlen(message) + 1)) == -1) {
             WARN("Error writing message into Box.\n");
             box->n_publishers--;
             free(message);
             return -1;
         }
         box->box_size += bytes_written;
+        if (bytes_written != strlen(message) + 1) {
+            WARN("Unable to write whole message, Box full.\n");
+        }
     }
 
     box->n_publishers--;
@@ -78,14 +86,14 @@ int publisher(Client_Info *info, Box *head) {
     return 0;
 }
 
-int subscriber(Client_Info *info, Box *head) {
+int subscriber(Client_Info *info, struct Box *head) {
     void *message = calloc(MESSAGE_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read from Box.\n");
         return -1;
     }
 
-    Box *box = getBox(head, info->box_name);
+    struct Box *box = getBox(head, info->box_name);
     if (box == NULL) {
         WARN("Box not found.\n");
         return -1;
@@ -104,10 +112,12 @@ int subscriber(Client_Info *info, Box *head) {
     char *buffer = calloc(BLOCK_SIZE, sizeof(char));
     if (buffer == NULL) {
         WARN("Unable to alloc memory to create buffer.\n");
+        box->n_subscribers--;
+        free(message);
         return -1;
     }
 
-    memcpy(message, SERVER_2_SUB, UINT8_T_SIZE);
+    memcpy(message, &SERVER_2_SUB, UINT8_T_SIZE);
     message += UINT8_T_SIZE;
 
     while (TRUE) {
@@ -120,14 +130,16 @@ int subscriber(Client_Info *info, Box *head) {
             return -1;
         }
 
-        int i;
-        for(i = 0; i < BLOCK_SIZE; i++) {
+        size_t i;
+        for (i = 0; i < BLOCK_SIZE; i++) {
             if (buffer[i] == '\0') {
                 memcpy(message, buffer, i);
+                break;
             }
         }
 
-        if (write(info->session_pipe, message - UINT8_T_SIZE, strlen(message) + 1)) {
+        if (write(info->session_pipe, message - UINT8_T_SIZE,
+                  strlen(message) + 1)) {
             WARN("Unable to write in Session's Pipe.\n");
             box->n_subscribers--;
             free(message);
@@ -136,30 +148,31 @@ int subscriber(Client_Info *info, Box *head) {
         }
 
         memset(message, 0, MESSAGE_SIZE);
-        memcpy(message, SERVER_2_SUB, UINT8_T_SIZE);
+        memcpy(message, &SERVER_2_SUB, UINT8_T_SIZE);
         message += UINT8_T_SIZE;
         memcpy(message, buffer + i, BLOCK_SIZE - i);
         message += BLOCK_SIZE - i;
-        memset(buffer, 0 , BLOCK_SIZE);
+        memset(buffer, 0, BLOCK_SIZE);
     }
-    
+
     box->n_subscribers--;
     free(message);
     free(buffer);
     return 0;
 }
 
-void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
+void *working_thread(void *_args) {
+    thread_args *args = (thread_args *)_args;
     int run = TRUE;
     while (run) {
         void *buffer = calloc(REQUEST_LENGTH, sizeof(char));
         if (buffer == NULL) {
             WARN("Unable to alloc memory to proccess request.\n");
-            return;
+            return 0;
         }
-        buffer = pcq_dequeue(queue);
+        buffer = pcq_dequeue(args->queue);
         u_int8_t op_code;
-        memcpy(op_code, buffer, UINT8_T_SIZE);
+        memcpy(&op_code, buffer, UINT8_T_SIZE);
         buffer += UINT8_T_SIZE;
 
         char session_pipe_name[PIPE_NAME_LENGTH];
@@ -169,44 +182,41 @@ void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
         int session_pipe = open(session_pipe_name, O_WRONLY);
         if (session_pipe == -1) {
             WARN("Unable to open Session's Pipe.\n");
-            return;
+            return 0;
         }
+
+        Client_Info *info;
 
         switch (op_code) {
         case 1:
-            Client_Info *info = register_client(buffer, session_pipe);
+            info = register_client(buffer, session_pipe);
             if (info == NULL) {
                 WARN("Unable to register publisher.\n");
-                return;
             }
-            if (publisher(info, head) == -1) {
+            if (publisher(info, args->head) == -1) {
                 WARN("Publisher unable to write.\n")
-                return -1;
             }
             break;
 
         case 2:
-            if (register_client(buffer, session_pipe) == NULL) {
-                WARN("Unable to register subscriber.\n");
-                return;
+            info = register_client(buffer, session_pipe);
+            if (info == NULL) {
+                WARN("Unable to register publisher.\n");
             }
-            if (subscriber(info, head) == -1) {
+            if (subscriber(info, args->head) == -1) {
                 WARN("Subscriber unable to read.\n");
-                return -1;
             }
             break;
 
         case 3:
-            if (create_box(buffer,session_pipe, head, op_code) == -1) {
+            if (create_box(buffer, session_pipe, args->head, op_code) == -1) {
                 WARN("Unable to create Box-\n");
-                return -1;
             }
             break;
 
         case 5:
-            if (remove_box(session_pipe, buffer, head, op_code) == -1) {
+            if (remove_box(session_pipe, buffer, args->head, op_code) == -1) {
                 WARN("Unable to remove Box.\n");
-                return -1;
             }
             break;
 
@@ -214,16 +224,20 @@ void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
             char *message;
             memset(buffer, 0, PIPE_NAME_LENGTH);
 
-            if (read(server_pipe, message, PIPE_NAME_LENGTH) == -1) {
+            if (read(session_pipe /*server_pipe*/, message, PIPE_NAME_LENGTH) ==
+                -1) {
                 WARN("Unable to read Session's Pipe.\n");
-                return;
             }
 
             break;
+        default:
+            WARN("Unknown OP_CODE given.\n");
         }
 
+        buffer -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
         free(buffer);
     }
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -263,16 +277,19 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    Box *head = NULL; // Linked list to store all the Boxes that are created
+    // Linked list to store all the Boxes that are created
+    struct Box *head = NULL;
 
     pc_queue_t *queue = malloc(sizeof(pc_queue_t));
     pcq_create(queue, QUEUE_CAPACITY);
 
     // Create Worker Threads for each Session
     pthread_t sessions_tid[max_sessions];
+    thread_args *args = malloc(sizeof(thread_args));
+    args->queue = queue;
+    args->head = head;
     for (int i = 0; i < max_sessions; i++) {
-        if (pthread_create(&sessions_tid[i], NULL, working_thread,
-                           NULL /*FIXME add variables*/) != 0) {
+        if (pthread_create(&sessions_tid[i], NULL, working_thread, args) != 0) {
             WARN("Error creating Thread(%d)\n", i);
             tfs_destroy();
             unlink(server_pipe_name);
@@ -315,7 +332,7 @@ int main(int argc, char **argv) {
     free(message);
 
     for (int i = 0; i < max_sessions; i++) {
-        if (pthread_join(&sessions_tid[i], NULL) != 0) { // FIXME
+        if (pthread_join(sessions_tid[i], NULL) != 0) {
             WARN("Error creating Thread(%d)\n", i);
             tfs_destroy();
             close(server_pipe);
@@ -341,41 +358,7 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-/*char buffer[BOX_NAME_LENGTH];
-        memset(buffer, 0, BOX_NAME_LENGTH);
-
-        if (read(server_pipe, buffer, BOX_NAME_LENGTH) == -1) {
-            WARN("Unable to read request.\n");
-            return -1;
-        }
-
-        if (register_pub(buffer, head) != 0) {
-            WARN("Unable to register publisher.\n");
-            return -1;
-        }
-        break;
-
-        char *buffer;
-        memset(buffer, 0, REQUEST_LENGTH - UINT8_T_SIZE);
-
-        if (read(server_pipe, buffer, REQUEST_LENGTH - UINT8_T_SIZE) == -1) {
-            WARN("Unable to read Session's Pipe.\n");
-            return -1;
-        }
-
-        if (register_sub(buffer, head) != 0) {
-            WARN("Unable to register subscriber.\n");
-            return -1;
-        }
-
-        char *buffer;
-        memset(buffer, 0, REQUEST_LENGTH - UINT8_T_SIZE);
-
-        if (read(server_pipe, buffer, REQUEST_LENGTH - UINT8_T_SIZE) == -1) {
-            WARN("Unable to read Session's Pipe.\n");
-            return -1;
-        }
+/*
 
         if (create_box(buffer, head, op_code) != 0) {
             WARN("Unable to create box.\n");
@@ -395,9 +378,10 @@ int main(int argc, char **argv) {
         }
 
 
-        */
 
-int create_box(int session_pipe, void *buffer, Box *head, uint8_t op_code) {
+
+int create_box(int session_pipe, void *buffer, struct Box *head,
+               uint8_t op_code) {
 
     char box_name[BOX_NAME_LENGTH];
     memset(box_name, 0, BOX_NAME_LENGTH);
@@ -423,7 +407,8 @@ int create_box(int session_pipe, void *buffer, Box *head, uint8_t op_code) {
     return 0;
 }
 
-int remove_box(int session_pipe, void *buffer, Box *head, uint8_t op_code) {
+int remove_box(int session_pipe, void *buffer, struct Box *head,
+               uint8_t op_code) {
 
     char box_name[BOX_NAME_LENGTH];
     memset(box_name, 0, BOX_NAME_LENGTH);
@@ -486,3 +471,4 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     free(message);
     return 0;
 }
+*/

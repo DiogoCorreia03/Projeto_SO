@@ -162,14 +162,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-// FIXME
-/*// Buffer has an written message (CTRL-D was pressed)
-    if (strlen(buffer) > 0) {
-        if (write(session_pipe, buffer, BLOCK_SIZE) <= 0) {
-            WARN("Unable to write message.\n");
-            return -1;
-        }
-        // write message sent e mudar o write para funcao á parte para o por o
-        // codigo
-    }*/

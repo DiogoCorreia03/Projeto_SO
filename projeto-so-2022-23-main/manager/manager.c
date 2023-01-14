@@ -112,7 +112,7 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
         return -1;
     }
 
-    Box *head = NULL;
+    struct Box *head = NULL;
 
     int flag = TRUE;
     while (flag) {
