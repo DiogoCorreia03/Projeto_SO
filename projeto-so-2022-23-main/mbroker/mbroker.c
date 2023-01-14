@@ -294,7 +294,7 @@ int list_box(int session_pipe, struct Box *head) {
     }
 
     last = 1;
-    box_to_string(prev, buffer, last);
+    box_to_string(current, buffer, last);
     if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
         WARN("Unable to write in Session's Pipe.\n");
         return -1;
