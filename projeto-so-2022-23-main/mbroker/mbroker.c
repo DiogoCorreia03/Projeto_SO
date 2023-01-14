@@ -13,17 +13,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-uint8_t BOX_CREATION_R = 3;
-uint8_t BOX_CREATION_A = 4;
-uint8_t BOX_REMOVAL_R = 5;
-uint8_t BOX_REMOVAL_A = 6;
-uint8_t LIST_BOX_R = 7;
-uint8_t LIST_BOX_A = 8;
-uint8_t SERVER_2_SUB = 10;
-int32_t BOX_SUCCESS = 0;
-int32_t BOX_ERROR = -1;
-uint8_t LAST_BOX = 1;
-
 Client_Info *register_client(void *buffer, int session_pipe) {
 
     char box_name[BOX_NAME_LENGTH];
@@ -43,7 +32,7 @@ Client_Info *register_client(void *buffer, int session_pipe) {
 }
 
 int publisher(Client_Info *info, struct Box *head) {
-    void *message = calloc(MESSAGE_SIZE, sizeof(char));
+    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read Publisher's message.\n");
         return -1;
@@ -72,7 +61,7 @@ int publisher(Client_Info *info, struct Box *head) {
     uint64_t bytes_written;
 
     while (TRUE) {
-        if (read(info->session_pipe, message, MESSAGE_SIZE) <= 0) {
+        if (read(info->session_pipe, message, file_size() + UINT8_T_SIZE) <= 0) {
             WARN("Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
@@ -98,7 +87,7 @@ int publisher(Client_Info *info, struct Box *head) {
 }
 
 int subscriber(Client_Info *info, struct Box *head) {
-    void *message = calloc(MESSAGE_SIZE, sizeof(char));
+    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read from Box.\n");
         return -1;
@@ -120,7 +109,7 @@ int subscriber(Client_Info *info, struct Box *head) {
         return -1;
     }
 
-    char *buffer = calloc(BLOCK_SIZE, sizeof(char));
+    char *buffer = calloc(file_size(), sizeof(char));
     if (buffer == NULL) {
         WARN("Unable to alloc memory to create buffer.\n");
         box->n_subscribers--;
@@ -133,7 +122,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 
     while (TRUE) {
 
-        if (tfs_read(fd, buffer, BLOCK_SIZE) == -1) {
+        if (tfs_read(fd, buffer, file_size()) == -1) {
             WARN("Unable to read message from Box.\n");
             box->n_subscribers--;
             free(message);
@@ -142,7 +131,7 @@ int subscriber(Client_Info *info, struct Box *head) {
         }
 
         size_t i;
-        for (i = 0; i < BLOCK_SIZE; i++) {
+        for (i = 0; i < file_size(); i++) {
             if (buffer[i] == '\0') {
                 memcpy(message, buffer, i);
                 break;
@@ -158,12 +147,12 @@ int subscriber(Client_Info *info, struct Box *head) {
             return -1;
         }
 
-        memset(message, 0, MESSAGE_SIZE);
+        memset(message, 0, file_size() + UINT8_T_SIZE);
         memcpy(message, &SERVER_2_SUB, UINT8_T_SIZE);
         message += UINT8_T_SIZE;
-        memcpy(message, buffer + i, BLOCK_SIZE - i);
-        message += BLOCK_SIZE - i;
-        memset(buffer, 0, BLOCK_SIZE);
+        memcpy(message, buffer + i, file_size() - i);
+        message += file_size() - i;
+        memset(buffer, 0, file_size());
     }
 
     box->n_subscribers--;
@@ -181,11 +170,11 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     }
 
     switch (op_code) {
-    case 3:
+    case BOX_CREATION_R:
         memcpy(message, &BOX_CREATION_A, UINT8_T_SIZE);
         break;
 
-    case 5:
+    case BOX_REMOVAL_R:
         memcpy(message, &BOX_REMOVAL_A, UINT8_T_SIZE);
         break;
 
@@ -268,37 +257,54 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
 }
 
 int list_box(int session_pipe, struct Box *head) {
-    char *buffer;
-    memset(buffer, 0, LIST_RESPONSE);
+    void *buffer = calloc(LIST_RESPONSE, sizeof(char));
+    if (buffer == NULL) {
+        WARN("Unable to alloc memory to list Boxes.\n");
+        return -1;
+    }
 
-    memcpy(buffer, LIST_BOX_A, UINT8_T_SIZE);
-    buffer += UINT8_T_SIZE;
+    memcpy(buffer, &LIST_BOX_A, UINT8_T_SIZE);
 
-    uint8_t last;
-    struct Box *prev = NULL;
     struct Box *current = head;
-    while(current != NULL) {
-        last = 0;
-        box_to_string(prev, buffer, last);
+    if (head == NULL) {
+        struct Box *no_box = malloc(sizeof(struct Box));
+        if (no_box == NULL) {
+            WARN("Unable to alloc memory to list Boxes.\n");
+            free(buffer);
+            return -1;
+        }
+        memset(no_box->box_name, 0, BOX_NAME_LENGTH);
+        no_box->box_size = 0;
+        no_box->n_publishers = 0;
+        no_box->n_subscribers = 0;
+        no_box->last = 1;
+        no_box->next = NULL;
+        box_to_string(no_box, buffer + UINT8_T_SIZE);
         if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
-            WARN("Unable to write in Session's Pipe.\n");
+            WARN("Unable to write in Manager's Pipe.\n");
+            free(no_box);
+            free(buffer);
+            return -1;
+        }
+        free(no_box);
+    }
+
+    while (current != NULL) {
+        box_to_string(current, buffer + UINT8_T_SIZE);
+        if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
+            WARN("Unable to write in Manager's Pipe.\n");
+            buffer -= UINT8_T_SIZE;
+            free(buffer);
             return -1;
         }
 
         current = current->next;
-        prev = current;
 
         memset(buffer, 0, LIST_RESPONSE);
-        memcpy(buffer, LIST_BOX_A, UINT8_T_SIZE);
-        buffer += UINT8_T_SIZE;
+        memcpy(buffer, &LIST_BOX_A, UINT8_T_SIZE);
     }
 
-    last = 1;
-    box_to_string(current, buffer, last);
-    if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
-        WARN("Unable to write in Session's Pipe.\n");
-        return -1;
-    }
+    free(buffer);
 
     return 0;
 }
@@ -379,6 +385,7 @@ void *working_thread(void *_args) {
 }
 
 int main(int argc, char **argv) {
+    (void)PIPE_PATH;
 
     if (argc != 3) {
         WARN("Instead of 3 arguments, %d were passed.\n", argc);
