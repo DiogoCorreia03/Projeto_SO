@@ -166,9 +166,20 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    char *server_pipe_name = argv[1];  // Server's Pipe name
-    char *session_pipe_name = argv[2]; // Session's Pipe name
-    char *request = argv[3];           // Request
+    // Server's Pipe name
+    char *server_pipe_name = argv[1];
+    // Session's Pipe name
+    char *session_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
+    // Request
+    char *request = argv[3];
+    char *box_name = NULL;
+    memcpy(session_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
+    memcpy(session_pipe_name + strlen(PIPE_PATH), argv[2],
+           PIPE_NAME_LENGTH - strlen(PIPE_PATH));
+    if (argc == 5) {
+        // Box's name
+        box_name = argv[4];
+    }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
         WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
@@ -188,8 +199,6 @@ int main(int argc, char **argv) {
 
     switch (*request) {
     case 'create':
-        char *box_name = argv[4]; // Box's name
-
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_CREATION_R) != 0) {
             WARN("Unable to create Box.\n");
@@ -197,8 +206,6 @@ int main(int argc, char **argv) {
         }
         break;
     case 'remove':
-        char *box_name = argv[4]; // Box's name
-
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_REMOVAL_R) != 0) {
             WARN("Unable to remove Box.\n");

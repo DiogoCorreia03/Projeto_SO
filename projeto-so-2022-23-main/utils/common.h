@@ -12,7 +12,6 @@
     (PIPE_NAME_LENGTH + BOX_NAME_LENGTH + UINT8_T_SIZE)
 #define TOTAL_RESPONSE_LENGTH (1029)
 #define ERROR_MESSAGE_SIZE (1024)
-#define ERROR_MESSAGE_RESPONSE_SIZE (29)
 #define BLOCK_SIZE file_size()
 #define MESSAGE_SIZE (BLOCK_SIZE + UINT8_T_SIZE)
 #define TRUE (1)
@@ -34,6 +33,7 @@ const uint8_t SERVER_2_SUB = 10;
 const int32_t BOX_SUCCESS = 0;
 const int32_t BOX_ERROR = -1;
 const uint8_t LAST_BOX = 1;
+const char PIPE_PATH[] = "../tmp/";
 
 typedef struct {
     int session_pipe;
@@ -55,7 +55,7 @@ typedef struct {
 
 struct Box *getBox(struct Box *head, char *box_name);
 
-int insertBox(struct Box *head, char *box_name, int file_handle,
+int insertBox(struct Box *head, char *box_name,
               uint64_t box_size);
 
 int insertionSort(struct Box *head, char *box_name, uint64_t box_size,
