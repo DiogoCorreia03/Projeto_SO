@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-Client_Info *register_client(void *buffer, int session_pipe, Box *head) {
+Client_Info *register_client(void *buffer, int session_pipe) {
 
     char box_name[BOX_NAME_LENGTH];
     memset(box_name, 0, BOX_NAME_LENGTH);
@@ -147,7 +147,7 @@ void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
 
         switch (op_code) {
         case 1:
-            Client_Info *info = register_client(buffer, session_pipe, head);
+            Client_Info *info = register_client(buffer, session_pipe);
             if (info == NULL) {
                 WARN("Unable to register publisher.\n");
                 return;
@@ -159,7 +159,7 @@ void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
             break;
 
         case 2:
-            if (register_client(buffer, session_pipe, head) == NULL) {
+            if (register_client(buffer, session_pipe) == NULL) {
                 WARN("Unable to register subscriber.\n");
                 return;
             }
