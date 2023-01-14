@@ -161,6 +161,100 @@ int subscriber(Client_Info *info, struct Box *head) {
     return 0;
 }
 
+int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
+    void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
+    if (message == NULL) {
+        WARN("Unable to alloc memory to send Message.\n");
+        free(message);
+        return -1;
+    }
+
+    switch (op_code) {
+    case BOX_CREATION_R:
+        memcpy(message, &BOX_CREATION_A, UINT8_T_SIZE);
+        break;
+
+    case BOX_REMOVAL_R:
+        memcpy(message, &BOX_REMOVAL_A, UINT8_T_SIZE);
+        break;
+
+    default:
+        WARN("Unknown OP_CODE given.\n");
+    }
+    message += UINT8_T_SIZE;
+
+    memcpy(message, &return_code, sizeof(int32_t));
+    message += sizeof(int32_t);
+
+    if (return_code == BOX_ERROR) {
+        char error_message[] = "ERROR: Unable to process request.\n";
+        memcpy(message, error_message, strlen(error_message));
+    }
+
+    if (write(session_pipe, message, TOTAL_RESPONSE_LENGTH) == -1) {
+        WARN("Unable to write in Session's Pipe.\n");
+        free(message);
+        return -1;
+    }
+
+    free(message);
+    return 0;
+}
+
+int create_box(int session_pipe, void *buffer, struct Box *head,
+               uint8_t op_code) {
+
+    char box_name[BOX_NAME_LENGTH];
+    memset(box_name, 0, BOX_NAME_LENGTH);
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
+
+    int fhandle = tfs_open(box_name, TFS_O_CREAT);
+    if (fhandle == -1) {
+        WARN("Unable to create Box %s.\n", box_name);
+        box_answer(session_pipe, BOX_ERROR, op_code);
+        return -1;
+    }
+
+    if (insertBox(head, box_name, BOX_NAME_LENGTH) == -1) {
+        WARN("Unable to insert Box %s.\n", box_name);
+        return -1;
+    }
+
+    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
+        WARN("Unable to send answer to Session's Pipe.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int remove_box(int session_pipe, void *buffer, struct Box *head,
+               uint8_t op_code) {
+
+    char box_name[BOX_NAME_LENGTH];
+    memset(box_name, 0, BOX_NAME_LENGTH);
+    memcpy(box_name, buffer, BOX_NAME_LENGTH);
+
+    if (unlink(box_name) == -1) {
+        WARN("Unable to unlink Box %s.\n", box_name);
+        box_answer(session_pipe, BOX_ERROR, op_code);
+        return -1;
+    }
+
+    if (deleteBox(head, box_name) == -1) {
+        WARN("Unable to delete Box %s.\n", box_name);
+        return -1;
+    }
+
+    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
+        WARN("Unable to send answer to Session's Pipe.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 void *working_thread(void *_args) {
     thread_args *args = (thread_args *)_args;
     int run = TRUE;
@@ -209,7 +303,7 @@ void *working_thread(void *_args) {
             break;
 
         case 3:
-            if (create_box(buffer, session_pipe, args->head, op_code) == -1) {
+            if (create_box(session_pipe, buffer, args->head, op_code) == -1) {
                 WARN("Unable to create Box-\n");
             }
             break;
@@ -221,13 +315,7 @@ void *working_thread(void *_args) {
             break;
 
         case 7:
-            char *message;
-            memset(buffer, 0, PIPE_NAME_LENGTH);
-
-            if (read(session_pipe /*server_pipe*/, message, PIPE_NAME_LENGTH) ==
-                -1) {
-                WARN("Unable to read Session's Pipe.\n");
-            }
+            
 
             break;
         default:
@@ -376,99 +464,4 @@ int main(int argc, char **argv) {
             WARN("Unable to remove Box.\n");
             return -1;
         }
-
-
-
-
-int create_box(int session_pipe, void *buffer, struct Box *head,
-               uint8_t op_code) {
-
-    char box_name[BOX_NAME_LENGTH];
-    memset(box_name, 0, BOX_NAME_LENGTH);
-    memcpy(box_name, buffer, BOX_NAME_LENGTH);
-
-    int fhandle = tfs_open(box_name, TFS_O_CREAT);
-    if (fhandle == -1) {
-        WARN("Unable to create Box %s.\n", box_name);
-        box_answer(session_pipe, BOX_ERROR, op_code);
-        return -1;
-    }
-
-    if (insertBox(head, box_name, fhandle, BOX_NAME_LENGTH) == -1) {
-        WARN("Unable to insert Box %s.\n", box_name);
-        return -1;
-    }
-
-    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
-        WARN("Unable to send answer to Session's Pipe.\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-int remove_box(int session_pipe, void *buffer, struct Box *head,
-               uint8_t op_code) {
-
-    char box_name[BOX_NAME_LENGTH];
-    memset(box_name, 0, BOX_NAME_LENGTH);
-    memcpy(box_name, buffer, BOX_NAME_LENGTH);
-
-    if (unlink(box_name) == -1) {
-        WARN("Unable to unlink Box %s.\n", box_name);
-        box_answer(session_pipe, BOX_ERROR, op_code);
-        return -1;
-    }
-
-    if (deleteBox(head, box_name) == -1) {
-        WARN("Unable to delete Box %s.\n", box_name);
-        return -1;
-    }
-
-    if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
-        WARN("Unable to send answer to Session's Pipe.\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
-    void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
-    if (message == NULL) {
-        WARN("Unable to alloc memory to send Message.\n");
-        free(message);
-        return -1;
-    }
-
-    switch (op_code) {
-    case BOX_CREATION_R:
-        memcpy(message, BOX_CREATION_A, UINT8_T_SIZE);
-        break;
-
-    case BOX_REMOVAL_R:
-        memcpy(message, BOX_REMOVAL_A, UINT8_T_SIZE);
-
-        break;
-    }
-    message += UINT8_T_SIZE;
-
-    memcpy(message, return_code, sizeof(int32_t));
-    message += sizeof(int32_t);
-
-    if (return_code == BOX_ERROR) {
-        char error_message[ERROR_MESSAGE_RESPONSE_SIZE];
-        memcpy(message, "ERROR: Unable to process request.\n",
-               ERROR_MESSAGE_RESPONSE_SIZE);
-    }
-
-    if (write(session_pipe, message, TOTAL_RESPONSE_LENGTH) == -1) {
-        WARN("Unable to write in Session's Pipe.\n");
-        free(message);
-        return -1;
-    }
-
-    free(message);
-    return 0;
-}
 */
