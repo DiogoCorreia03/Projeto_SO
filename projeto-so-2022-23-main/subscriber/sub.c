@@ -12,6 +12,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+const uint8_t SUB_REGISTER = 2;
+const char *PIPE_PATH = "../tmp/";
+
 static volatile int running = TRUE;
 
 void sigint_handler() { running = FALSE; }

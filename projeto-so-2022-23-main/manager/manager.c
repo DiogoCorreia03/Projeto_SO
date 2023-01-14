@@ -12,6 +12,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+const uint8_t BOX_CREATION_R = 3;
+const uint8_t BOX_REMOVAL_R = 5;
+const uint8_t LIST_BOX_R = 7;
+const int32_t BOX_SUCCESS = 0;
+const int32_t BOX_ERROR = -1;
+const uint8_t LAST_BOX = 1;
+const char *PIPE_PATH = "../tmp/";
+
 int box_request(char *server_pipe, char *session_pipe_name, char *box,
                 uint8_t code) {
 
@@ -67,7 +75,7 @@ int box_request(char *server_pipe, char *session_pipe_name, char *box,
     memcpy(error_message, buffer + sizeof(uint8_t) + sizeof(int32_t),
            ERROR_MESSAGE_SIZE);
 
-    if (memcmp(return_code, BOX_SUCCESS, sizeof(uint32_t)) == 0) {
+    if (memcmp(return_code, BOX_SUCCESS, sizeof(int32_t)) == 0) {
         fprintf(stdout, "OK\n");
     } else {
         fprintf(stdout, "ERROR %s\n", error_message);

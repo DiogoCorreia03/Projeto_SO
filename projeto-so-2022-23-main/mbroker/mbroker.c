@@ -13,6 +13,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+uint8_t BOX_CREATION_R = 3;
+uint8_t BOX_CREATION_A = 4;
+uint8_t BOX_REMOVAL_R = 5;
+uint8_t BOX_REMOVAL_A = 6;
+uint8_t LIST_BOX_R = 7;
+uint8_t LIST_BOX_A = 8;
+uint8_t SERVER_2_SUB = 10;
+int32_t BOX_SUCCESS = 0;
+int32_t BOX_ERROR = -1;
+uint8_t LAST_BOX = 1;
+
 Client_Info *register_client(void *buffer, int session_pipe) {
 
     char box_name[BOX_NAME_LENGTH];
@@ -186,17 +197,19 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     memcpy(message, &return_code, sizeof(int32_t));
     message += sizeof(int32_t);
 
+    char error_message[] = "ERROR: Unable to process request.\n";
     if (return_code == BOX_ERROR) {
-        char error_message[] = "ERROR: Unable to process request.\n";
         memcpy(message, error_message, strlen(error_message));
     }
 
-    if (write(session_pipe, message, TOTAL_RESPONSE_LENGTH) == -1) {
+    if (write(session_pipe, message, strlen(error_message)) == -1) {
         WARN("Unable to write in Session's Pipe.\n");
+        message -= (UINT8_T_SIZE + sizeof(int32_t));
         free(message);
         return -1;
     }
 
+    message -= (UINT8_T_SIZE + sizeof(int32_t));
     free(message);
     return 0;
 }
@@ -253,7 +266,6 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
 
     return 0;
 }
-
 
 void *working_thread(void *_args) {
     thread_args *args = (thread_args *)_args;
@@ -315,7 +327,6 @@ void *working_thread(void *_args) {
             break;
 
         case 7:
-            
 
             break;
         default:

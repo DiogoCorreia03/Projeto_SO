@@ -11,6 +11,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+const uint8_t PUB_REGISTER = 1;
+const uint8_t PUB_2_SERVER = 9;
+const char *PIPE_PATH = "../tmp/";
+
 int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
