@@ -104,6 +104,22 @@ int deleteBox(struct Box *head, char *box_name) {
     return -1;
 }
 
+void box_to_string(struct Box *box, char *buffer, uint8_t last) {
+    memcpy(buffer, last, UINT8_T_SIZE);
+    buffer += UINT8_T_SIZE;
+
+    memcpy(buffer, box->box_name, BOX_NAME_LENGTH);
+    buffer += BOX_NAME_LENGTH;
+
+    memcpy(buffer, box->box_size, sizeof(uint64_t));
+    buffer += sizeof(uint64_t);
+
+    memcpy(buffer, box->n_publishers, sizeof(uint64_t));
+    buffer += sizeof(uint64_t);
+
+    memcpy(buffer, box->n_subscribers, sizeof(uint64_t));
+}
+
 void destroy_list(struct Box *head) {
     struct Box *current = head;
     while (current != NULL) {

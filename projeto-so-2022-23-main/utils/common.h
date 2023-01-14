@@ -46,6 +46,8 @@ int insertionSort(struct Box *head, char *box_name, uint64_t box_size,
 
 int deleteBox(struct Box *head, char *box_name);
 
+void box_to_string(struct Box *box, char *buffer, uint8_t last);
+
 void destroy_list(struct Box *head);
 
 void print_list(struct Box *head);

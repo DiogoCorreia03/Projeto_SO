@@ -140,7 +140,7 @@ int list_box_request(char *server_pipe, char *session_pipe_name) {
             flag = FALSE;
         }
 
-        char box_name[32];
+        char box_name[BOX_NAME_LENGTH];
         memcpy(box_name, buffer, BOX_NAME_LENGTH);
         buffer += BOX_NAME_LENGTH;
 

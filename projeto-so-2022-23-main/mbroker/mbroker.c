@@ -181,11 +181,11 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     }
 
     switch (op_code) {
-    case BOX_CREATION_R:
+    case 3:
         memcpy(message, &BOX_CREATION_A, UINT8_T_SIZE);
         break;
 
-    case BOX_REMOVAL_R:
+    case 5:
         memcpy(message, &BOX_REMOVAL_A, UINT8_T_SIZE);
         break;
 
@@ -267,6 +267,42 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
     return 0;
 }
 
+int list_box(int session_pipe, struct Box *head) {
+    char *buffer;
+    memset(buffer, 0, LIST_RESPONSE);
+
+    memcpy(buffer, LIST_RESPONSE, UINT8_T_SIZE);
+    buffer += UINT8_T_SIZE;
+
+    uint8_t last;
+    struct Box *prev = NULL;
+    struct Box *current = head;
+    while(current != NULL) {
+        last = 0;
+        box_to_string(prev, buffer, last);
+        if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
+            WARN("Unable to write in Session's Pipe.\n");
+            return -1;
+        }
+
+        current = current->next;
+        prev = current;
+
+        memset(buffer, 0, LIST_RESPONSE);
+        memcpy(buffer, LIST_RESPONSE, UINT8_T_SIZE);
+        buffer += UINT8_T_SIZE;
+    }
+
+    last = 1;
+    box_to_string(current, buffer, last);
+    if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
+        WARN("Unable to write in Session's Pipe.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 void *working_thread(void *_args) {
     thread_args *args = (thread_args *)_args;
     int run = TRUE;
@@ -327,8 +363,11 @@ void *working_thread(void *_args) {
             break;
 
         case 7:
-
+            if (list_box(session_pipe, args->head) == -1) {
+                WARN("Unable to list boxes.\n");
+            }
             break;
+
         default:
             WARN("Unknown OP_CODE given.\n");
         }
