@@ -81,7 +81,7 @@ int publisher(Client_Info *info, Box *head) {
 int subscriber(Client_Info *info, Box *head) {
     void *message = calloc(MESSAGE_SIZE, sizeof(char));
     if (message == NULL) {
-        WARN(".\n");
+        WARN("Unable to alloc memory to read from Box.\n");
         return -1;
     }
 
@@ -101,24 +101,51 @@ int subscriber(Client_Info *info, Box *head) {
         return -1;
     }
 
+    char *buffer = calloc(BLOCK_SIZE, sizeof(char));
+    if (buffer == NULL) {
+        WARN("Unable to alloc memory to create buffer.\n");
+        return -1;
+    }
+
+    memcpy(message, SERVER_2_SUB, UINT8_T_SIZE);
+    message += UINT8_T_SIZE;
+
     while (TRUE) {
-        if (tfs_read(fd, message, BLOCK_SIZE) == -1) {
+
+        if (tfs_read(fd, buffer, BLOCK_SIZE) == -1) {
             WARN("Unable to read message from Box.\n");
             box->n_subscribers--;
             free(message);
+            free(buffer);
             return -1;
         }
 
-        if (write(info->session_pipe, message, strlen(message) + 1)) {
+        int i;
+        for(i = 0; i < BLOCK_SIZE; i++) {
+            if (buffer[i] == '\0') {
+                memcpy(message, buffer, i);
+            }
+        }
+
+        if (write(info->session_pipe, message - UINT8_T_SIZE, strlen(message) + 1)) {
             WARN("Unable to write in Session's Pipe.\n");
             box->n_subscribers--;
             free(message);
+            free(buffer);
             return -1;
         }
+
+        memset(message, 0, MESSAGE_SIZE);
+        memcpy(message, SERVER_2_SUB, UINT8_T_SIZE);
+        message += UINT8_T_SIZE;
+        memcpy(message, buffer + i, BLOCK_SIZE - i);
+        message += BLOCK_SIZE - i;
+        memset(buffer, 0 , BLOCK_SIZE);
     }
     
     box->n_subscribers--;
     free(message);
+    free(buffer);
     return 0;
 }
 
@@ -174,6 +201,7 @@ void working_thread(pc_queue_t *queue, Box *head, int server_pipe) {
                 WARN("Unable to create Box-\n");
                 return -1;
             }
+            break;
 
         case 5:
             if (remove_box(session_pipe, buffer, head, op_code) == -1) {
