@@ -16,7 +16,7 @@ struct Box *getBox(struct Box *head, char *box_name) {
     return NULL;
 }
 
-int insertBox(struct Box *head, char *box_name, int file_handle, uint64_t box_size) {
+int insertBox(struct Box *head, char *box_name, uint64_t box_size) {
     struct Box *new_node = (struct Box *)malloc(sizeof(struct Box));
     if (new_node == NULL) {
         WARN("Unable to alloc memory to create Box.\n");
