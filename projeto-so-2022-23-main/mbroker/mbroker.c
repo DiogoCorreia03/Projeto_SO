@@ -503,22 +503,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-/*
-
-        if (create_box(buffer, head, op_code) != 0) {
-            WARN("Unable to create box.\n");
-            return -1;
-        }
-        break;char *buffer;
-        memset(buffer, 0, REQUEST_LENGTH - UINT8_T_SIZE);
-
-        if (read(server_pipe, buffer, REQUEST_LENGTH - UINT8_T_SIZE) == -1) {
-            WARN("Unable to read Session's Pipe.\n");
-            return -1;
-        }
-
-        if (remove_box(buffer, head, op_code) != 0) {
-            WARN("Unable to remove Box.\n");
-            return -1;
-        }
-*/
