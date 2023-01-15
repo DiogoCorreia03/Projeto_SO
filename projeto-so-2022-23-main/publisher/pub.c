@@ -22,8 +22,8 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
     message += UINT8_T_SIZE;
 
     size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
-                           ? PIPE_NAME_LENGTH
-                           : strlen(session_pipe_name);
+                              ? PIPE_NAME_LENGTH
+                              : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
@@ -56,7 +56,8 @@ ssize_t send_message(int session_pipe, char *message) {
     memcpy(to_send, message, strlen(message));
     to_send -= UINT8_T_SIZE;
 
-    ssize_t bytes_written = write(session_pipe, to_send, MESSAGE_SIZE + UINT8_T_SIZE);
+    ssize_t bytes_written =
+        write(session_pipe, to_send, MESSAGE_SIZE + UINT8_T_SIZE);
 
     free(to_send);
 
@@ -91,15 +92,17 @@ int main(int argc, char **argv) {
     }
 
     // Server's Pipe name
-    char *server_pipe_name = argv[1];
+    char *server_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
+    memcpy(server_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
+    memcpy(server_pipe_name + strlen(PIPE_PATH), argv[1],
+           PIPE_NAME_LENGTH - strlen(PIPE_PATH));
     // Session's Pipe name
     char *session_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
-    // Box's name
-    char *box_name = argv[3];
-
     memcpy(session_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
     memcpy(session_pipe_name + strlen(PIPE_PATH), argv[2],
            PIPE_NAME_LENGTH - strlen(PIPE_PATH));
+    // Box's name
+    char *box_name = argv[3];
 
     // Session's Pipe
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {

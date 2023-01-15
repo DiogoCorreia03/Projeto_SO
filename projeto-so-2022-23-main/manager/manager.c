@@ -173,15 +173,20 @@ int main(int argc, char **argv) {
     }
 
     // Server's Pipe name
-    char *server_pipe_name = argv[1];
+    char *server_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
+    memcpy(server_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
+    memcpy(server_pipe_name + strlen(PIPE_PATH), argv[1],
+           PIPE_NAME_LENGTH - strlen(PIPE_PATH));
+
     // Session's Pipe name
-    char *session_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
-    // Request
-    char *request = argv[3];
-    char *box_name = NULL;
+    char *session_pipe_name =
+        calloc(PIPE_NAME_LENGTH, sizeof(char));
     memcpy(session_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
     memcpy(session_pipe_name + strlen(PIPE_PATH), argv[2],
            PIPE_NAME_LENGTH - strlen(PIPE_PATH));
+    // Request
+    char *request = argv[3];
+    char *box_name = NULL;
     if (argc == 5) {
         // Box's name
         box_name = argv[4];

@@ -61,7 +61,8 @@ int publisher(Client_Info *info, struct Box *head) {
     uint64_t bytes_written;
 
     while (TRUE) {
-        if (read(info->session_pipe, message, MESSAGE_SIZE + UINT8_T_SIZE) <= 0) {
+        if (read(info->session_pipe, message, MESSAGE_SIZE + UINT8_T_SIZE) <=
+            0) {
             WARN("Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
@@ -397,7 +398,10 @@ int main(int argc, char **argv) {
     }
 
     // Server's Pipe
-    char *server_pipe_name = argv[1];
+    char *server_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
+    memcpy(server_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
+    memcpy(server_pipe_name + strlen(PIPE_PATH), argv[1],
+           PIPE_NAME_LENGTH - strlen(PIPE_PATH));
 
     char *c = '\0';
     long max_sessions = strtol(argv[2], &c, 10);
