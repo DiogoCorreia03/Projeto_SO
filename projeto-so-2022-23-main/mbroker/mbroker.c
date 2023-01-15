@@ -193,7 +193,7 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     memcpy(message, &return_code, sizeof(int32_t));
     message += sizeof(int32_t);
 
-    char error_message[] = "ERROR: Unable to process request.\n";
+    char error_message[] = "ERROR: Unable to process request.";
     if (return_code == BOX_ERROR) {
         memcpy(message, error_message, strlen(error_message));
     }
@@ -216,7 +216,6 @@ int create_box(int session_pipe, void *buffer, struct Box *head,
     char box_name[BOX_NAME_LENGTH];
     memset(box_name, 0, BOX_NAME_LENGTH);
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
-
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
     if (fhandle == -1) {
         WARN("Unable to create Box %s.\n", box_name);

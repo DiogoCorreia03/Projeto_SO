@@ -34,12 +34,15 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
+    char tfs_directory = '/';
+    memcpy(message, &tfs_directory, sizeof(char));
+    message += sizeof(char);
     // Box
     size_t box_n_bytes =
-        strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
+        strlen(box) > BOX_NAME_LENGTH - 1 ? BOX_NAME_LENGTH - 1 : strlen(box);
     memcpy(message, box, box_n_bytes);
 
-    message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
+    message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH + 1);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
         WARN("Unable to write message.\n");
@@ -75,7 +78,7 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
     if (memcmp(&return_code, &BOX_SUCCESS, sizeof(int32_t)) == 0) {
         fprintf(stdout, "OK\n");
     } else {
-        fprintf(stdout, "ERROR %s\n", error_message);
+        fprintf(stdout, "ERROR%s\n", error_message);
     }
 
     if (close(session_pipe) == -1) {
@@ -180,7 +183,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
 
 int main(int argc, char **argv) {
 
-    if (argc != 5 || argc != 4) {
+    if (argc != 5 && argc != 4) {
         WARN("A wrong number of arguments was passed(%d).\n", argc);
         return -1;
     }
