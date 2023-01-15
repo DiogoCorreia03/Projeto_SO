@@ -66,6 +66,7 @@ int publisher(Client_Info *info, struct Box *head) {
             WARN("Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
+            tfs_close(fd);
             return -1;
         }
         message += UINT8_T_SIZE;
@@ -74,6 +75,7 @@ int publisher(Client_Info *info, struct Box *head) {
             WARN("Error writing message into Box.\n");
             box->n_publishers--;
             free(message);
+            tfs_close(fd);
             return -1;
         }
         box->box_size += bytes_written;
@@ -84,6 +86,7 @@ int publisher(Client_Info *info, struct Box *head) {
 
     box->n_publishers--;
     free(message);
+    tfs_close(fd);
     return 0;
 }
 
@@ -115,6 +118,7 @@ int subscriber(Client_Info *info, struct Box *head) {
         WARN("Unable to alloc memory to create buffer.\n");
         box->n_subscribers--;
         free(message);
+        tfs_close(fd);
         return -1;
     }
 
@@ -128,6 +132,7 @@ int subscriber(Client_Info *info, struct Box *head) {
             box->n_subscribers--;
             free(message);
             free(buffer);
+            tfs_close(fd);
             return -1;
         }
 
@@ -145,6 +150,7 @@ int subscriber(Client_Info *info, struct Box *head) {
             box->n_subscribers--;
             free(message);
             free(buffer);
+            tfs_close(fd);
             return -1;
         }
 
@@ -159,6 +165,7 @@ int subscriber(Client_Info *info, struct Box *head) {
     box->n_subscribers--;
     free(message);
     free(buffer);
+    tfs_close(fd);
     return 0;
 }
 
@@ -166,7 +173,6 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to send Message.\n");
-        free(message);
         return -1;
     }
 
@@ -218,12 +224,19 @@ int create_box(int session_pipe, void *buffer, struct Box *head,
         return -1;
     }
 
+    if (tfs_close(fhandle) == -1) {
+        box_answer(session_pipe, BOX_ERROR, op_code);
+        return -1;
+    }
+
     if (insertBox(head, box_name, BOX_NAME_LENGTH) == -1) {
+        box_answer(session_pipe, BOX_ERROR, op_code);
         WARN("Unable to insert Box %s.\n", box_name);
         return -1;
     }
 
     if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
+
         WARN("Unable to send answer to Session's Pipe.\n");
         return -1;
     }
@@ -238,7 +251,7 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
     memset(box_name, 0, BOX_NAME_LENGTH);
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
 
-    if (unlink(box_name) == -1) {
+    if (tfs_unlink(box_name) == -1) {
         WARN("Unable to unlink Box %s.\n", box_name);
         box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
@@ -246,11 +259,13 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
 
     if (deleteBox(head, box_name) == -1) {
         WARN("Unable to delete Box %s.\n", box_name);
+        box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
 
     if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
         WARN("Unable to send answer to Session's Pipe.\n");
+        box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
 
