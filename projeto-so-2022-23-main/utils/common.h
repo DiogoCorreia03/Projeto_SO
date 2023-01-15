@@ -34,9 +34,6 @@ static const int32_t BOX_ERROR = -1;
 static const uint8_t LAST_BOX = 1;
 static const char PIPE_PATH[] = "../tmp/";
 
-extern pthread_mutex_t sub_lock;
-extern pthread_cond_t sub_cond;
-
 typedef struct {
     int session_pipe;
     char box_name[BOX_NAME_LENGTH];

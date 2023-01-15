@@ -341,9 +341,11 @@ void *working_thread(void *_args) {
             info = register_client(buffer, session_pipe);
             if (info == NULL) {
                 WARN("Unable to register publisher.\n");
+                close(session_pipe);
             }
             if (publisher(info, args->head) == -1) {
-                WARN("Publisher unable to write.\n")
+                WARN("Publisher unable to write.\n");
+                close(session_pipe);
             }
             break;
 
@@ -351,27 +353,32 @@ void *working_thread(void *_args) {
             info = register_client(buffer, session_pipe);
             if (info == NULL) {
                 WARN("Unable to register publisher.\n");
+                close(session_pipe);
             }
             if (subscriber(info, args->head) == -1) {
                 WARN("Subscriber unable to read.\n");
+                close(session_pipe);
             }
             break;
 
         case 3:
             if (create_box(session_pipe, buffer, args->head, op_code) == -1) {
                 WARN("Unable to create Box-\n");
+                close(session_pipe);
             }
             break;
 
         case 5:
             if (remove_box(session_pipe, buffer, args->head, op_code) == -1) {
                 WARN("Unable to remove Box.\n");
+                close(session_pipe);
             }
             break;
 
         case 7:
             if (list_box(session_pipe, args->head) == -1) {
                 WARN("Unable to list boxes.\n");
+                close(session_pipe);
             }
             break;
 
@@ -403,7 +410,7 @@ int main(int argc, char **argv) {
     memcpy(server_pipe_name + strlen(PIPE_PATH), argv[1],
            PIPE_NAME_LENGTH - strlen(PIPE_PATH));
 
-    char *c = '\0';
+    char *c;
     long max_sessions = strtol(argv[2], &c, 10);
     if (errno != 0 || *c != '\0' || max_sessions > INT_MAX ||
         max_sessions < INT_MIN) {
@@ -428,11 +435,25 @@ int main(int argc, char **argv) {
     struct Box *head = NULL;
 
     pc_queue_t *queue = malloc(sizeof(pc_queue_t));
+    if (queue == NULL) {
+        WARN("Unable to alloc for queue.\n");
+        tfs_destroy();
+        unlink(server_pipe_name);
+        return -1;
+    }
     pcq_create(queue, QUEUE_CAPACITY);
 
     // Create Worker Threads for each Session
     pthread_t sessions_tid[max_sessions];
     thread_args *args = malloc(sizeof(thread_args));
+    if (args == NULL) {
+        WARN("Unable to alloc for thread args.\n");
+        tfs_destroy();
+        unlink(server_pipe_name);
+        pcq_destroy(queue);
+        free(queue);
+        return -1;
+    }
     args->queue = queue;
     args->head = head;
     for (int i = 0; i < max_sessions; i++) {
@@ -440,6 +461,9 @@ int main(int argc, char **argv) {
             WARN("Error creating Thread(%d)\n", i);
             tfs_destroy();
             unlink(server_pipe_name);
+            destroy_list(head);
+            pcq_destroy(queue);
+            free(queue);
             return -1;
         }
     }
@@ -449,6 +473,20 @@ int main(int argc, char **argv) {
         WARN("Unable to open Server's Pipe.\n");
         tfs_destroy();
         unlink(server_pipe_name);
+        destroy_list(head);
+        pcq_destroy(queue);
+        free(queue);
+        return -1;
+    }
+    int dummy_server_pipe = open(server_pipe_name, O_WRONLY);
+    if (dummy_server_pipe == -1) {
+        WARN("Unable to open Server's Pipe.\n");
+        close(server_pipe);
+        tfs_destroy();
+        unlink(server_pipe_name);
+        pcq_destroy(queue);
+        destroy_list(head);
+        free(queue);
         return -1;
     }
 
@@ -457,19 +495,25 @@ int main(int argc, char **argv) {
     while (run) {
         if (read(server_pipe, message, REQUEST_LENGTH) == -1) {
             WARN("Unable to read message to Server Pipe.\n");
-            free(message);
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
+            pcq_destroy(queue);
+            destroy_list(head);
+            free(message);
+            free(queue);
             return -1;
         }
 
         if (pcq_enqueue(queue, message) == -1) {
             WARN("Unable to queue request.\n");
-            free(message);
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
+            pcq_destroy(queue);
+            destroy_list(head);
+            free(message);
+            free(queue);
             return -1;
         }
 
@@ -484,17 +528,27 @@ int main(int argc, char **argv) {
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
+            pcq_destroy(queue);
+            destroy_list(head);
+            free(queue);
             return -1;
         }
     }
 
+    pcq_destroy(queue);
+    destroy_list(head);
+    free(queue);
+
     if (close(server_pipe) == -1) {
         WARN("Error closing Server's Pipe.\n");
+        tfs_destroy();
+        unlink(server_pipe_name);
         return -1;
     }
 
     if (unlink(server_pipe_name) == -1) {
         WARN("Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
+        tfs_destroy();
         return -1;
     }
 
