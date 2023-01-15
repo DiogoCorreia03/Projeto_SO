@@ -1,24 +1,23 @@
 #include "producer-consumer.h"
-#include "../utils/logging.h"
 #include "../utils/common.h"
+#include "../utils/logging.h"
 #include <errno.h>
-#include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
 
 int pcq_create(pc_queue_t *queue, size_t capacity) {
-    // Allocate memory for the buffer
+
     queue->pcq_buffer = (void **)malloc(capacity * sizeof(void *));
     if (queue->pcq_buffer == NULL) {
         return -1;
     }
-    // Initialize the queue variables
+
     queue->pcq_capacity = capacity;
     queue->pcq_current_size = 0;
     queue->pcq_head = 0;
     queue->pcq_tail = 0;
 
-    // Initialize the condition variables and locks
     if (pthread_mutex_init(&queue->pcq_current_size_lock, NULL) == -1) {
         return -1;
     }
@@ -45,10 +44,9 @@ int pcq_create(pc_queue_t *queue, size_t capacity) {
 }
 
 int pcq_destroy(pc_queue_t *queue) {
-    // Deallocate memory for the buffer
+
     free(queue->pcq_buffer);
 
-    // Destroy the locks and condition variables
     if (pthread_mutex_destroy(&queue->pcq_current_size_lock) == -1) {
         return -1;
     }
@@ -85,7 +83,6 @@ int pcq_enqueue(pc_queue_t *queue, void *elem) {
         return -1;
     }
 
-    // Wait until the queue has space
     while (queue->pcq_current_size == queue->pcq_capacity) {
         if (pthread_cond_wait(&queue->pcq_pusher_condvar,
                               &queue->pcq_current_size_lock) == -1) {
@@ -104,10 +101,9 @@ int pcq_enqueue(pc_queue_t *queue, void *elem) {
     }
 
     free(queue->pcq_buffer[queue->pcq_head]);
-    // Insert the new element at the head of the buffer
+
     queue->pcq_buffer[queue->pcq_head] = elem_alloc;
 
-    // Update the head index
     queue->pcq_head = (queue->pcq_head + 1) % queue->pcq_capacity;
 
     if (pthread_mutex_unlock(&queue->pcq_head_lock) == -1) {
@@ -128,7 +124,6 @@ void *pcq_dequeue(pc_queue_t *queue) {
         return NULL;
     }
 
-    // Wait until the queue has an element
     while (queue->pcq_current_size == 0) {
         if (pthread_cond_wait(&queue->pcq_popper_condvar,
                               &queue->pcq_current_size_lock) == -1) {
@@ -146,10 +141,8 @@ void *pcq_dequeue(pc_queue_t *queue) {
         return NULL;
     }
 
-    // Remove the element from the tail of the buffer
     elem = queue->pcq_buffer[queue->pcq_tail];
 
-    // Update the tail index
     queue->pcq_tail = (queue->pcq_tail + 1) % queue->pcq_capacity;
 
     if (pthread_mutex_unlock(&queue->pcq_tail_lock) == -1) {
