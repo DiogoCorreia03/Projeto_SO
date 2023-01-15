@@ -19,7 +19,7 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
 
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to request box action.\n");
+        fprintf(stderr,"Unable to alloc memory to request box action.\n");
         return -1;
     }
 
@@ -45,7 +45,7 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
     message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH + 1);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
-        WARN("Unable to write message.\n");
+        fprintf(stderr,"Unable to write message.\n");
         free(message);
         return -1;
     }
@@ -56,14 +56,14 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
 
     int session_pipe = open(session_pipe_name, O_RDONLY);
     if (session_pipe == -1) {
-        WARN("Unable to open Session's Pipe.\n");
+        fprintf(stderr,"Unable to open Session's Pipe.\n");
         return -1;
     }
 
     char buffer[TOTAL_RESPONSE_LENGTH];
     memset(buffer, 0, TOTAL_RESPONSE_LENGTH);
     if (read(session_pipe, buffer, TOTAL_RESPONSE_LENGTH) == -1) {
-        WARN("Unable to read Server's answer to request.\n");
+        fprintf(stderr,"Unable to read Server's answer to request.\n");
         return -1;
     }
 
@@ -94,7 +94,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
 
     void *message = calloc(LIST_REQUEST, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory for request to list boxes.\n");
+        fprintf(stderr,"Unable to alloc memory for request to list boxes.\n");
         return -1;
     }
 
@@ -109,7 +109,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
     message -= UINT8_T_SIZE;
 
     if (write(server_pipe, message, LIST_REQUEST) == -1) {
-        WARN("Unable to write request message.\n");
+        fprintf(stderr,"Unable to write request message.\n");
         free(message);
         return -1;
     }
@@ -120,13 +120,13 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
 
     void *buffer = calloc(LIST_RESPONSE, sizeof(char));
     if (buffer == NULL) {
-        WARN("Unable to alloc memory to request box action.\n");
+        fprintf(stderr,"Unable to alloc memory to request box action.\n");
         return -1;
     }
 
     int session_pipe = open(session_pipe_name, O_RDONLY);
     if (session_pipe == -1) {
-        WARN("Unable to open Session's Pipe.\n");
+        fprintf(stderr,"Unable to open Session's Pipe.\n");
         return -1;
     }
 
@@ -135,7 +135,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
     int flag = TRUE;
     while (flag) {
         if (read(session_pipe, buffer, LIST_RESPONSE) == -1) {
-            WARN("Unable to read Box list.\n");
+            fprintf(stderr,"Unable to read Box list.\n");
             return -1;
         }
 
@@ -184,7 +184,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
 int main(int argc, char **argv) {
 
     if (argc != 5 && argc != 4) {
-        WARN("A wrong number of arguments was passed(%d).\n", argc);
+        fprintf(stderr,"A wrong number of arguments was passed(%d).\n", argc);
         return -1;
     }
 
@@ -208,14 +208,14 @@ int main(int argc, char **argv) {
     }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
-        WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
+        fprintf(stderr,"Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
         free(server_pipe_name);
         free(session_pipe_name);
         return -1;
     }
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
-        WARN("Unable to create Session's Pipe.\n");
+        fprintf(stderr,"Unable to create Session's Pipe.\n");
         free(server_pipe_name);
         free(session_pipe_name);
         return -1;
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
 
     int server_pipe = open(server_pipe_name, O_WRONLY);
     if (server_pipe == -1) {
-        WARN("Unable to open Server's Pipe.\n");
+        fprintf(stderr,"Unable to open Server's Pipe.\n");
         free(server_pipe_name);
         free(session_pipe_name);
         return -1;
@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
     if (strcmp(request, "create")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_CREATION_R) != 0) {
-            WARN("Unable to create Box.\n");
+            fprintf(stderr,"Unable to create Box.\n");
             free(server_pipe_name);
             free(session_pipe_name);
             return -1;
@@ -240,14 +240,14 @@ int main(int argc, char **argv) {
     } else if (strcmp(request, "remove")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_REMOVAL_R) != 0) {
-            WARN("Unable to remove Box.\n");
+            fprintf(stderr,"Unable to remove Box.\n");
             free(server_pipe_name);
             free(session_pipe_name);
             return -1;
         }
     } else if (strcmp(request, "list")) {
         if (list_box_request(server_pipe, session_pipe_name) != 0) {
-            WARN("Unable to list Boxes.\n");
+            fprintf(stderr,"Unable to list Boxes.\n");
             free(server_pipe_name);
             free(session_pipe_name);
             return -1;
