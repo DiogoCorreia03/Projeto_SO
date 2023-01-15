@@ -20,8 +20,6 @@ typedef struct {
  */
 tfs_params tfs_default_params();
 
-size_t file_size(void);
-
 /**
  * Initialize tecnicofs, optionally with a given configuration.
  * Returns 0 if successful, -1 otherwise.

@@ -44,7 +44,7 @@ int register_pub(int server_pipe, char *session_pipe_name, char *box) {
 }
 
 ssize_t send_message(int session_pipe, char *message) {
-    void *to_send = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
+    void *to_send = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (to_send == NULL) {
         WARN("Unable to alloc memory to send message.\n");
         return -1;
@@ -56,7 +56,7 @@ ssize_t send_message(int session_pipe, char *message) {
     memcpy(to_send, message, strlen(message));
     to_send -= UINT8_T_SIZE;
 
-    ssize_t bytes_written = write(session_pipe, to_send, file_size() + UINT8_T_SIZE);
+    ssize_t bytes_written = write(session_pipe, to_send, MESSAGE_SIZE + UINT8_T_SIZE);
 
     free(to_send);
 
@@ -138,26 +138,26 @@ int main(int argc, char **argv) {
 
     char c = 'a';
     size_t i = 0;
-    char buffer[file_size()];
-    memset(buffer, 0, file_size());
+    char buffer[MESSAGE_SIZE];
+    memset(buffer, 0, MESSAGE_SIZE);
 
     while ((c = (char)getchar()) != EOF) {
-        if (i < file_size() - 1) {
+        if (i < MESSAGE_SIZE - 1) {
             if (c == '\n') {
                 c = '\0';
-                i = file_size() - 1;
+                i = MESSAGE_SIZE - 1;
             }
             buffer[i] = c;
         }
 
-        if (i >= file_size() - 1) {
+        if (i >= MESSAGE_SIZE - 1) {
             if (send_message(session_pipe, buffer) < 0) {
                 WARN("Unable to write message.\n");
                 pub_destroy(session_pipe, session_pipe_name, server_pipe);
                 return -1;
             }
             i = 0;
-            memset(buffer, 0, file_size());
+            memset(buffer, 0, MESSAGE_SIZE);
         }
 
         i++;

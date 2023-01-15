@@ -22,8 +22,6 @@ tfs_params tfs_default_params() {
     return params;
 }
 
-size_t file_size(void) { return state_block_size(); }
-
 int tfs_init(tfs_params const *params_ptr) {
     tfs_params params;
     if (params_ptr != NULL) {

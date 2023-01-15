@@ -17,6 +17,7 @@
 #define LIST_REQUEST (257)
 #define LIST_RESPONSE (58)
 #define QUEUE_CAPACITY (200)
+#define MESSAGE_SIZE (1024)
 
 static const uint8_t PUB_REGISTER = 1;
 static const uint8_t SUB_REGISTER = 2;
@@ -31,7 +32,7 @@ static const uint8_t SERVER_2_SUB = 10;
 static const int32_t BOX_SUCCESS = 0;
 static const int32_t BOX_ERROR = -1;
 static const uint8_t LAST_BOX = 1;
-static const char *PIPE_PATH = "../tmp/";
+static const char PIPE_PATH[] = "../tmp/";
 
 extern pthread_mutex_t sub_lock;
 extern pthread_cond_t sub_cond;

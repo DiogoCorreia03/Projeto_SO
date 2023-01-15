@@ -32,7 +32,7 @@ Client_Info *register_client(void *buffer, int session_pipe) {
 }
 
 int publisher(Client_Info *info, struct Box *head) {
-    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
+    void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read Publisher's message.\n");
         return -1;
@@ -61,7 +61,7 @@ int publisher(Client_Info *info, struct Box *head) {
     uint64_t bytes_written;
 
     while (TRUE) {
-        if (read(info->session_pipe, message, file_size() + UINT8_T_SIZE) <= 0) {
+        if (read(info->session_pipe, message, MESSAGE_SIZE + UINT8_T_SIZE) <= 0) {
             WARN("Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
@@ -87,7 +87,7 @@ int publisher(Client_Info *info, struct Box *head) {
 }
 
 int subscriber(Client_Info *info, struct Box *head) {
-    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
+    void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read from Box.\n");
         return -1;
@@ -109,7 +109,7 @@ int subscriber(Client_Info *info, struct Box *head) {
         return -1;
     }
 
-    char *buffer = calloc(file_size(), sizeof(char));
+    char *buffer = calloc(MESSAGE_SIZE, sizeof(char));
     if (buffer == NULL) {
         WARN("Unable to alloc memory to create buffer.\n");
         box->n_subscribers--;
@@ -122,7 +122,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 
     while (TRUE) {
 
-        if (tfs_read(fd, buffer, file_size()) == -1) {
+        if (tfs_read(fd, buffer, MESSAGE_SIZE) == -1) {
             WARN("Unable to read message from Box.\n");
             box->n_subscribers--;
             free(message);
@@ -131,7 +131,7 @@ int subscriber(Client_Info *info, struct Box *head) {
         }
 
         size_t i;
-        for (i = 0; i < file_size(); i++) {
+        for (i = 0; i < MESSAGE_SIZE; i++) {
             if (buffer[i] == '\0') {
                 memcpy(message, buffer, i);
                 break;
@@ -147,12 +147,12 @@ int subscriber(Client_Info *info, struct Box *head) {
             return -1;
         }
 
-        memset(message, 0, file_size() + UINT8_T_SIZE);
+        memset(message, 0, MESSAGE_SIZE + UINT8_T_SIZE);
         memcpy(message, &SERVER_2_SUB, UINT8_T_SIZE);
         message += UINT8_T_SIZE;
-        memcpy(message, buffer + i, file_size() - i);
-        message += file_size() - i;
-        memset(buffer, 0, file_size());
+        memcpy(message, buffer + i, MESSAGE_SIZE - i);
+        message += MESSAGE_SIZE - i;
+        memset(buffer, 0, MESSAGE_SIZE);
     }
 
     box->n_subscribers--;
@@ -385,8 +385,6 @@ void *working_thread(void *_args) {
 }
 
 int main(int argc, char **argv) {
-    (void)PIPE_PATH;
-
     if (argc != 3) {
         WARN("Instead of 3 arguments, %d were passed.\n", argc);
         return -1;
