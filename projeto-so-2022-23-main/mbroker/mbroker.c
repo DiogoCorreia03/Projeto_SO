@@ -21,7 +21,7 @@ Client_Info *register_client(void *buffer, int session_pipe) {
 
     Client_Info *info = calloc(1, sizeof(Client_Info));
     if (info == NULL) {
-        WARN("Unable to alloc memory to create Client.\n");
+        fprintf(stderr,"Unable to alloc memory to create Client.\n");
         return NULL;
     }
 
@@ -34,13 +34,13 @@ Client_Info *register_client(void *buffer, int session_pipe) {
 int publisher(Client_Info *info, struct Box *head) {
     void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to read Publisher's message.\n");
+        fprintf(stderr,"Unable to alloc memory to read Publisher's message.\n");
         return -1;
     }
 
     struct Box *box = getBox(head, info->box_name);
     if (box == NULL) {
-        WARN("Box not found.\n");
+        fprintf(stderr,"Box not found.\n");
         return -1;
     }
 
@@ -52,7 +52,7 @@ int publisher(Client_Info *info, struct Box *head) {
 
     int fd = tfs_open(info->box_name, TFS_O_APPEND);
     if (fd == -1) {
-        WARN("Unable to open TFS file.\n");
+        fprintf(stderr,"Unable to open TFS file.\n");
         box->n_publishers--;
         free(message);
         return -1;
@@ -63,7 +63,7 @@ int publisher(Client_Info *info, struct Box *head) {
     while (TRUE) {
         if (read(info->session_pipe, message, MESSAGE_SIZE + UINT8_T_SIZE) <=
             0) {
-            WARN("Error reading message from Publisher's Pipe.\n");
+            fprintf(stderr,"Error reading message from Publisher's Pipe.\n");
             box->n_publishers--;
             free(message);
             tfs_close(fd);
@@ -72,7 +72,7 @@ int publisher(Client_Info *info, struct Box *head) {
         message += UINT8_T_SIZE;
         if ((bytes_written =
                  (uint64_t)tfs_write(fd, message, strlen(message) + 1)) == -1) {
-            WARN("Error writing message into Box.\n");
+            fprintf(stderr,"Error writing message into Box.\n");
             box->n_publishers--;
             free(message);
             tfs_close(fd);
@@ -80,7 +80,7 @@ int publisher(Client_Info *info, struct Box *head) {
         }
         box->box_size += bytes_written;
         if (bytes_written != strlen(message) + 1) {
-            WARN("Unable to write whole message, Box full.\n");
+            fprintf(stderr,"Unable to write whole message, Box full.\n");
         }
     }
 
@@ -93,13 +93,13 @@ int publisher(Client_Info *info, struct Box *head) {
 int subscriber(Client_Info *info, struct Box *head) {
     void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to read from Box.\n");
+        fprintf(stderr,"Unable to alloc memory to read from Box.\n");
         return -1;
     }
 
     struct Box *box = getBox(head, info->box_name);
     if (box == NULL) {
-        WARN("Box not found.\n");
+        fprintf(stderr,"Box not found.\n");
         return -1;
     }
 
@@ -107,7 +107,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 
     int fd = tfs_open(info->box_name, TFS_O_TRUNC);
     if (fd == -1) {
-        WARN("Unable to open TFS file.\n");
+        fprintf(stderr,"Unable to open TFS file.\n");
         box->n_subscribers--;
         free(message);
         return -1;
@@ -115,7 +115,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 
     char *buffer = calloc(MESSAGE_SIZE, sizeof(char));
     if (buffer == NULL) {
-        WARN("Unable to alloc memory to create buffer.\n");
+        fprintf(stderr,"Unable to alloc memory to create buffer.\n");
         box->n_subscribers--;
         free(message);
         tfs_close(fd);
@@ -128,7 +128,7 @@ int subscriber(Client_Info *info, struct Box *head) {
     while (TRUE) {
 
         if (tfs_read(fd, buffer, MESSAGE_SIZE) == -1) {
-            WARN("Unable to read message from Box.\n");
+            fprintf(stderr,"Unable to read message from Box.\n");
             box->n_subscribers--;
             free(message);
             free(buffer);
@@ -146,7 +146,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 
         if (write(info->session_pipe, message - UINT8_T_SIZE,
                   strlen(message) + 1)) {
-            WARN("Unable to write in Session's Pipe.\n");
+            fprintf(stderr,"Unable to write in Session's Pipe.\n");
             box->n_subscribers--;
             free(message);
             free(buffer);
@@ -172,7 +172,7 @@ int subscriber(Client_Info *info, struct Box *head) {
 int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     void *message = calloc(TOTAL_RESPONSE_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to send Message.\n");
+        fprintf(stderr,"Unable to alloc memory to send Message.\n");
         return -1;
     }
 
@@ -186,7 +186,7 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
         break;
 
     default:
-        WARN("Unknown OP_CODE given.\n");
+        fprintf(stderr,"Unknown OP_CODE given.\n");
     }
     message += UINT8_T_SIZE;
 
@@ -199,7 +199,7 @@ int box_answer(int session_pipe, int32_t return_code, uint8_t op_code) {
     }
 
     if (write(session_pipe, message, strlen(error_message)) == -1) {
-        WARN("Unable to write in Session's Pipe.\n");
+        fprintf(stderr,"Unable to write in Session's Pipe.\n");
         message -= (UINT8_T_SIZE + sizeof(int32_t));
         free(message);
         return -1;
@@ -218,7 +218,7 @@ int create_box(int session_pipe, void *buffer, struct Box *head,
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
     if (fhandle == -1) {
-        WARN("Unable to create Box %s.\n", box_name);
+        fprintf(stderr,"Unable to create Box %s.\n", box_name);
         box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
@@ -230,13 +230,13 @@ int create_box(int session_pipe, void *buffer, struct Box *head,
 
     if (insertBox(head, box_name, BOX_NAME_LENGTH) == -1) {
         box_answer(session_pipe, BOX_ERROR, op_code);
-        WARN("Unable to insert Box %s.\n", box_name);
+        fprintf(stderr,"Unable to insert Box %s.\n", box_name);
         return -1;
     }
 
     if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
 
-        WARN("Unable to send answer to Session's Pipe.\n");
+        fprintf(stderr,"Unable to send answer to Session's Pipe.\n");
         return -1;
     }
 
@@ -251,19 +251,19 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
     memcpy(box_name, buffer, BOX_NAME_LENGTH);
 
     if (tfs_unlink(box_name) == -1) {
-        WARN("Unable to unlink Box %s.\n", box_name);
+        fprintf(stderr,"Unable to unlink Box %s.\n", box_name);
         box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
 
     if (deleteBox(head, box_name) == -1) {
-        WARN("Unable to delete Box %s.\n", box_name);
+        fprintf(stderr,"Unable to delete Box %s.\n", box_name);
         box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
 
     if (box_answer(session_pipe, BOX_SUCCESS, op_code) == -1) {
-        WARN("Unable to send answer to Session's Pipe.\n");
+        fprintf(stderr,"Unable to send answer to Session's Pipe.\n");
         box_answer(session_pipe, BOX_ERROR, op_code);
         return -1;
     }
@@ -274,7 +274,7 @@ int remove_box(int session_pipe, void *buffer, struct Box *head,
 int list_box(int session_pipe, struct Box *head) {
     void *buffer = calloc(LIST_RESPONSE, sizeof(char));
     if (buffer == NULL) {
-        WARN("Unable to alloc memory to list Boxes.\n");
+        fprintf(stderr,"Unable to alloc memory to list Boxes.\n");
         return -1;
     }
 
@@ -284,7 +284,7 @@ int list_box(int session_pipe, struct Box *head) {
     if (head == NULL) {
         struct Box *no_box = malloc(sizeof(struct Box));
         if (no_box == NULL) {
-            WARN("Unable to alloc memory to list Boxes.\n");
+            fprintf(stderr,"Unable to alloc memory to list Boxes.\n");
             free(buffer);
             return -1;
         }
@@ -296,7 +296,7 @@ int list_box(int session_pipe, struct Box *head) {
         no_box->next = NULL;
         box_to_string(no_box, buffer + UINT8_T_SIZE);
         if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
-            WARN("Unable to write in Manager's Pipe.\n");
+            fprintf(stderr,"Unable to write in Manager's Pipe.\n");
             free(no_box);
             free(buffer);
             return -1;
@@ -307,7 +307,7 @@ int list_box(int session_pipe, struct Box *head) {
     while (current != NULL) {
         box_to_string(current, buffer + UINT8_T_SIZE);
         if (write(session_pipe, buffer, LIST_RESPONSE) == -1) {
-            WARN("Unable to write in Manager's Pipe.\n");
+            fprintf(stderr,"Unable to write in Manager's Pipe.\n");
             buffer -= UINT8_T_SIZE;
             free(buffer);
             return -1;
@@ -330,7 +330,7 @@ void *working_thread(void *_args) {
     while (run) {
         void *buffer = calloc(REQUEST_LENGTH, sizeof(char));
         if (buffer == NULL) {
-            WARN("Unable to alloc memory to proccess request.\n");
+            fprintf(stderr,"Unable to alloc memory to proccess request.\n");
             return 0;
         }
         buffer = pcq_dequeue(args->queue);
@@ -344,7 +344,7 @@ void *working_thread(void *_args) {
 
         int session_pipe = open(session_pipe_name, O_WRONLY);
         if (session_pipe == -1) {
-            WARN("Unable to open Session's Pipe.\n");
+            fprintf(stderr,"Unable to open Session's Pipe.\n");
             return 0;
         }
 
@@ -354,11 +354,11 @@ void *working_thread(void *_args) {
         case 1:
             info = register_client(buffer, session_pipe);
             if (info == NULL) {
-                WARN("Unable to register publisher.\n");
+                fprintf(stderr,"Unable to register publisher.\n");
                 close(session_pipe);
             }
             if (publisher(info, args->head) == -1) {
-                WARN("Publisher unable to write.\n");
+                fprintf(stderr,"Publisher unable to write.\n");
                 close(session_pipe);
             }
             break;
@@ -366,38 +366,38 @@ void *working_thread(void *_args) {
         case 2:
             info = register_client(buffer, session_pipe);
             if (info == NULL) {
-                WARN("Unable to register publisher.\n");
+                fprintf(stderr,"Unable to register publisher.\n");
                 close(session_pipe);
             }
             if (subscriber(info, args->head) == -1) {
-                WARN("Subscriber unable to read.\n");
+                fprintf(stderr,"Subscriber unable to read.\n");
                 close(session_pipe);
             }
             break;
 
         case 3:
             if (create_box(session_pipe, buffer, args->head, op_code) == -1) {
-                WARN("Unable to create Box-\n");
+                fprintf(stderr,"Unable to create Box-\n");
                 close(session_pipe);
             }
             break;
 
         case 5:
             if (remove_box(session_pipe, buffer, args->head, op_code) == -1) {
-                WARN("Unable to remove Box.\n");
+                fprintf(stderr,"Unable to remove Box.\n");
                 close(session_pipe);
             }
             break;
 
         case 7:
             if (list_box(session_pipe, args->head) == -1) {
-                WARN("Unable to list boxes.\n");
+                fprintf(stderr,"Unable to list boxes.\n");
                 close(session_pipe);
             }
             break;
 
         default:
-            WARN("Unknown OP_CODE given.\n");
+            fprintf(stderr,"Unknown OP_CODE given.\n");
         }
 
         buffer -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
@@ -408,13 +408,13 @@ void *working_thread(void *_args) {
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        WARN("Instead of 3 arguments, %d were passed.\n", argc);
+        fprintf(stderr,"Instead of 3 arguments, %d were passed.\n", argc);
         return -1;
     }
 
     // Start TFS
     if (tfs_init(NULL) != 0) {
-        WARN("Unable to start TFS.\n");
+        fprintf(stderr,"Unable to start TFS.\n");
         return -1;
     }
 
@@ -428,19 +428,19 @@ int main(int argc, char **argv) {
     long max_sessions = strtol(argv[2], &c, 10);
     if (errno != 0 || *c != '\0' || max_sessions > INT_MAX ||
         max_sessions < INT_MIN) {
-        WARN("Invalid Max Sessions value.\n");
+        fprintf(stderr,"Invalid Max Sessions value.\n");
         tfs_destroy();
         return -1;
     }
 
     if (unlink(server_pipe_name) != 0 && errno != ENOENT) {
-        WARN("Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
+        fprintf(stderr,"Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
         tfs_destroy();
         return -1;
     }
 
     if (mkfifo(server_pipe_name, 0777) != 0) {
-        WARN("Unable to create Server's Pipe.\n");
+        fprintf(stderr,"Unable to create Server's Pipe.\n");
         tfs_destroy();
         return -1;
     }
@@ -450,7 +450,7 @@ int main(int argc, char **argv) {
 
     pc_queue_t *queue = malloc(sizeof(pc_queue_t));
     if (queue == NULL) {
-        WARN("Unable to alloc for queue.\n");
+        fprintf(stderr,"Unable to alloc for queue.\n");
         tfs_destroy();
         unlink(server_pipe_name);
         return -1;
@@ -461,7 +461,7 @@ int main(int argc, char **argv) {
     pthread_t sessions_tid[max_sessions];
     thread_args *args = malloc(sizeof(thread_args));
     if (args == NULL) {
-        WARN("Unable to alloc for thread args.\n");
+        fprintf(stderr,"Unable to alloc for thread args.\n");
         tfs_destroy();
         unlink(server_pipe_name);
         pcq_destroy(queue);
@@ -472,7 +472,7 @@ int main(int argc, char **argv) {
     args->head = head;
     for (int i = 0; i < max_sessions; i++) {
         if (pthread_create(&sessions_tid[i], NULL, working_thread, args) != 0) {
-            WARN("Error creating Thread(%d)\n", i);
+            fprintf(stderr,"Error creating Thread(%d)\n", i);
             tfs_destroy();
             unlink(server_pipe_name);
             destroy_list(head);
@@ -484,7 +484,7 @@ int main(int argc, char **argv) {
 
     int server_pipe = open(server_pipe_name, O_RDONLY);
     if (server_pipe == -1) {
-        WARN("Unable to open Server's Pipe.\n");
+        fprintf(stderr,"Unable to open Server's Pipe.\n");
         tfs_destroy();
         unlink(server_pipe_name);
         destroy_list(head);
@@ -494,7 +494,7 @@ int main(int argc, char **argv) {
     }
     int dummy_server_pipe = open(server_pipe_name, O_WRONLY);
     if (dummy_server_pipe == -1) {
-        WARN("Unable to open Server's Pipe.\n");
+        fprintf(stderr,"Unable to open Server's Pipe.\n");
         close(server_pipe);
         tfs_destroy();
         unlink(server_pipe_name);
@@ -508,7 +508,7 @@ int main(int argc, char **argv) {
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     while (run) {
         if (read(server_pipe, message, REQUEST_LENGTH) == -1) {
-            WARN("Unable to read message to Server Pipe.\n");
+            fprintf(stderr,"Unable to read message to Server Pipe.\n");
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
@@ -520,7 +520,7 @@ int main(int argc, char **argv) {
         }
 
         if (pcq_enqueue(queue, message) == -1) {
-            WARN("Unable to queue request.\n");
+            fprintf(stderr,"Unable to queue request.\n");
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < max_sessions; i++) {
         if (pthread_join(sessions_tid[i], NULL) != 0) {
-            WARN("Error creating Thread(%d)\n", i);
+            fprintf(stderr,"Error creating Thread(%d)\n", i);
             tfs_destroy();
             close(server_pipe);
             unlink(server_pipe_name);
@@ -554,20 +554,20 @@ int main(int argc, char **argv) {
     free(queue);
 
     if (close(server_pipe) == -1) {
-        WARN("Error closing Server's Pipe.\n");
+        fprintf(stderr,"Error closing Server's Pipe.\n");
         tfs_destroy();
         unlink(server_pipe_name);
         return -1;
     }
 
     if (unlink(server_pipe_name) == -1) {
-        WARN("Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
+        fprintf(stderr,"Unlink(%s) failed: %s\n", server_pipe_name, strerror(errno));
         tfs_destroy();
         return -1;
     }
 
     if (tfs_destroy() != 0) {
-        WARN("Error destroying TFS.\n");
+        fprintf(stderr,"Error destroying TFS.\n");
         return -1;
     }
 

@@ -22,7 +22,7 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
 
     void *message = calloc(REQUEST_LENGTH, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to register Subscriber.\n");
+        fprintf(stderr,"Unable to alloc memory to register Subscriber.\n");
         return -1;
     }
 
@@ -45,7 +45,7 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     message -= (UINT8_T_SIZE + PIPE_NAME_LENGTH);
 
     if (write(server_pipe, message, REQUEST_LENGTH) == -1) {
-        WARN("Unable to write message.\n");
+        fprintf(stderr,"Unable to write message.\n");
         free(message);
         return -1;
     }
@@ -60,7 +60,7 @@ int read_message(int session_pipe, char *buffer) {
 
     void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
-        WARN("Unable to alloc memory to read message.\n");
+        fprintf(stderr,"Unable to alloc memory to read message.\n");
         return -1;
     }
 
@@ -78,12 +78,12 @@ int read_message(int session_pipe, char *buffer) {
 int sub_destroy(int session_pipe, char *session_pipe_name) {
 
     if (close(session_pipe) == -1) {
-        WARN("End of Session: Failed to close the Session's Pipe.\n");
+        fprintf(stderr,"End of Session: Failed to close the Session's Pipe.\n");
         return -1;
     }
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
-        WARN("End of session: Unlink(%s) failed: %s\n", session_pipe_name,
+        fprintf(stderr,"End of session: Unlink(%s) failed: %s\n", session_pipe_name,
              strerror(errno));
         return -1;
     }
@@ -95,7 +95,7 @@ int sub_destroy(int session_pipe, char *session_pipe_name) {
 
 int main(int argc, char **argv) {
     if (argc != 4) {
-        WARN("Instead of 4 arguments, %d were passed.\n", argc);
+        fprintf(stderr,"Instead of 4 arguments, %d were passed.\n", argc);
         return -1;
     }
 
@@ -113,14 +113,14 @@ int main(int argc, char **argv) {
     char *box_name = argv[3];
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
-        WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
+        fprintf(stderr,"Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
         free(server_pipe_name);
         free(session_pipe_name);
         return -1;
     }
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
-        WARN("Unable to create Session's Pipe.\n");
+        fprintf(stderr,"Unable to create Session's Pipe.\n");
         free(server_pipe_name);
         free(session_pipe_name);
         return -1;
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 
     int server_pipe = open(server_pipe_name, O_WRONLY);
     if (server_pipe == -1) {
-        WARN("Unable to open Server's Pipe.\n");
+        fprintf(stderr,"Unable to open Server's Pipe.\n");
         unlink(session_pipe_name);
         free(server_pipe_name);
         free(session_pipe_name);
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     }
 
     if (register_sub(server_pipe, session_pipe_name, box_name) != 0) {
-        WARN("Unable to register this Session in the Server.\n");
+        fprintf(stderr,"Unable to register this Session in the Server.\n");
         close(server_pipe);
         unlink(session_pipe_name);
         free(server_pipe_name);
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
 
     int session_pipe = open(session_pipe_name, O_RDONLY);
     if (session_pipe == -1) {
-        WARN("Unable to open Session's Pipe.\n");
+        fprintf(stderr,"Unable to open Session's Pipe.\n");
         unlink(session_pipe_name);
         free(session_pipe_name);
         return -1;
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
      */
 
     if (signal(SIGINT, sigint_handler) == SIG_ERR) {
-        WARN("Unable to set signal handler.\n");
+        fprintf(stderr,"Unable to set signal handler.\n");
         sub_destroy(session_pipe, session_pipe_name);
         return -1;
     }
@@ -175,14 +175,14 @@ int main(int argc, char **argv) {
     int message_counter = 0;
     char *buffer = calloc(MESSAGE_SIZE, sizeof(char));
     if (buffer == NULL) {
-        WARN("Unable to alloc memory to read message.\n");
+        fprintf(stderr,"Unable to alloc memory to read message.\n");
         sub_destroy(session_pipe, session_pipe_name);
         return -1;
     }
 
     while (running) {
         if (read_message(session_pipe, buffer) != 0) {
-            WARN("Error reading messages from box.\n");
+            fprintf(stderr,"Error reading messages from box.\n");
             free(buffer);
             sub_destroy(session_pipe, session_pipe_name);
             return -1;
