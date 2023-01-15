@@ -23,16 +23,16 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
         return -1;
     }
 
-    memcpy(message, SUB_REGISTER, sizeof(uint8_t));
+    memcpy(message, &SUB_REGISTER, sizeof(uint8_t));
     message += UINT8_T_SIZE;
 
-    int pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
+    size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
                            ? PIPE_NAME_LENGTH
                            : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
-    int box_n_bytes =
+    size_t box_n_bytes =
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
 
@@ -50,19 +50,18 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
 
 int read_message(int session_pipe, char *buffer) {
 
-    void *message = calloc(file_size() + UINT8_T_SIZE, sizeof(char));
+    void *message = calloc(MESSAGE_SIZE + UINT8_T_SIZE, sizeof(char));
     if (message == NULL) {
         WARN("Unable to alloc memory to read message.\n");
         return -1;
     }
 
-    if (read(session_pipe, message, file_size() + UINT8_T_SIZE) <= 0) {
+    if (read(session_pipe, message, MESSAGE_SIZE + UINT8_T_SIZE) <= 0) {
         free(message);
         return -1;
     }
 
-    message += UINT8_T_SIZE;
-    memcpy(buffer, message, file_size());
+    memcpy(buffer, message + UINT8_T_SIZE, MESSAGE_SIZE);
     free(message);
 
     return 0;
@@ -141,7 +140,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, sigint_handler);
 
     int message_counter = 0;
-    char *buffer = calloc(file_size(), sizeof(char));
+    char *buffer = calloc(MESSAGE_SIZE, sizeof(char));
     if (buffer == NULL) {
         WARN("Unable to alloc memory to read message.\n");
         sub_destroy(session_pipe, session_pipe_name, server_pipe);
