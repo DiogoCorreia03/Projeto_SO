@@ -23,15 +23,18 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
         return -1;
     }
 
+    // Request's code
     memcpy(message, &code, sizeof(uint8_t));
     message += UINT8_T_SIZE;
 
+    // Manager's Pipe
     size_t pipe_n_bytes = strlen(session_pipe_name) > PIPE_NAME_LENGTH
                               ? PIPE_NAME_LENGTH
                               : strlen(session_pipe_name);
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
+    // Box
     size_t box_n_bytes =
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
@@ -58,12 +61,14 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
     memset(buffer, 0, TOTAL_RESPONSE_LENGTH);
     if (read(session_pipe, buffer, TOTAL_RESPONSE_LENGTH) == -1) {
         WARN("Unable to read Server's answer to request.\n");
+        return -1;
     }
 
     int32_t return_code;
     memcpy(&return_code, buffer + sizeof(uint8_t), sizeof(int32_t));
 
     char error_message[ERROR_MESSAGE_SIZE];
+    memset(error_message, 0, ERROR_MESSAGE_SIZE);
     memcpy(error_message, buffer + sizeof(uint8_t) + sizeof(int32_t),
            ERROR_MESSAGE_SIZE);
 
@@ -71,6 +76,10 @@ int box_request(int server_pipe, char *session_pipe_name, char *box,
         fprintf(stdout, "OK\n");
     } else {
         fprintf(stdout, "ERROR %s\n", error_message);
+    }
+
+    if (close(session_pipe) == -1) {
+        return -1;
     }
 
     return 0;
@@ -139,6 +148,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
         }
 
         char box_name[BOX_NAME_LENGTH];
+        memset(box_name, 0, BOX_NAME_LENGTH);
         memcpy(box_name, buffer, BOX_NAME_LENGTH);
         buffer += BOX_NAME_LENGTH;
 
@@ -161,6 +171,9 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
 
     print_list(head);
     destroy_list(head);
+    if (close(session_pipe) == -1) {
+        return -1;
+    }
 
     return 0;
 }
@@ -179,8 +192,7 @@ int main(int argc, char **argv) {
            PIPE_NAME_LENGTH - strlen(PIPE_PATH));
 
     // Session's Pipe name
-    char *session_pipe_name =
-        calloc(PIPE_NAME_LENGTH, sizeof(char));
+    char *session_pipe_name = calloc(PIPE_NAME_LENGTH, sizeof(char));
     memcpy(session_pipe_name, PIPE_PATH, strlen(PIPE_PATH));
     memcpy(session_pipe_name + strlen(PIPE_PATH), argv[2],
            PIPE_NAME_LENGTH - strlen(PIPE_PATH));
@@ -194,17 +206,23 @@ int main(int argc, char **argv) {
 
     if (unlink(session_pipe_name) != 0 && errno != ENOENT) {
         WARN("Unlink(%s) failed: %s\n", session_pipe_name, strerror(errno));
+        free(server_pipe_name);
+        free(session_pipe_name);
         return -1;
     }
 
     if (mkfifo(session_pipe_name, 0777) != 0) {
         WARN("Unable to create Session's Pipe.\n");
+        free(server_pipe_name);
+        free(session_pipe_name);
         return -1;
     }
 
     int server_pipe = open(server_pipe_name, O_WRONLY);
     if (server_pipe == -1) {
         WARN("Unable to open Server's Pipe.\n");
+        free(server_pipe_name);
+        free(session_pipe_name);
         return -1;
     }
 
@@ -212,20 +230,42 @@ int main(int argc, char **argv) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_CREATION_R) != 0) {
             WARN("Unable to create Box.\n");
+            free(server_pipe_name);
+            free(session_pipe_name);
             return -1;
         }
     } else if (strcmp(request, "remove")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_REMOVAL_R) != 0) {
             WARN("Unable to remove Box.\n");
+            free(server_pipe_name);
+            free(session_pipe_name);
             return -1;
         }
     } else if (strcmp(request, "list")) {
         if (list_box_request(server_pipe, session_pipe_name) != 0) {
             WARN("Unable to list Boxes.\n");
+            free(server_pipe_name);
+            free(session_pipe_name);
             return -1;
         }
     }
+
+    if (unlink(session_pipe_name) == -1) {
+        close(server_pipe);
+        free(server_pipe_name);
+        free(session_pipe_name);
+        return -1;
+    }
+
+    if (close(server_pipe) == -1) {
+        free(server_pipe_name);
+        free(session_pipe_name);
+        return -1;
+    }
+
+    free(server_pipe_name);
+    free(session_pipe_name);
 
     return 0;
 }

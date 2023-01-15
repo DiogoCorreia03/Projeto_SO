@@ -1,6 +1,8 @@
 #include "producer-consumer.h"
 #include "../utils/logging.h"
+#include "../utils/common.h"
 #include <errno.h>
+#include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
 
@@ -10,7 +12,6 @@ int pcq_create(pc_queue_t *queue, size_t capacity) {
     if (queue->pcq_buffer == NULL) {
         return -1;
     }
-
     // Initialize the queue variables
     queue->pcq_capacity = capacity;
     queue->pcq_current_size = 0;
@@ -74,6 +75,12 @@ int pcq_destroy(pc_queue_t *queue) {
 }
 
 int pcq_enqueue(pc_queue_t *queue, void *elem) {
+    void *elem_alloc = calloc(REQUEST_LENGTH, sizeof(char));
+    if (elem_alloc == NULL) {
+        return -1;
+    }
+    memcpy(elem_alloc, elem, REQUEST_LENGTH);
+
     if (pthread_mutex_lock(&queue->pcq_current_size_lock) == -1) {
         return -1;
     }
@@ -96,8 +103,9 @@ int pcq_enqueue(pc_queue_t *queue, void *elem) {
         return -1;
     }
 
+    free(queue->pcq_buffer[queue->pcq_head]);
     // Insert the new element at the head of the buffer
-    queue->pcq_buffer[queue->pcq_head] = elem;
+    queue->pcq_buffer[queue->pcq_head] = elem_alloc;
 
     // Update the head index
     queue->pcq_head = (queue->pcq_head + 1) % queue->pcq_capacity;
