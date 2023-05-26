@@ -142,7 +142,7 @@ int list_box_request(int server_pipe, char *session_pipe_name) {
         uint8_t last;
         memcpy(&last, buffer, UINT8_T_SIZE);
         buffer += UINT8_T_SIZE;
-
+        // FIXME se nao houver boxes last vem a 1 e box_name a \0
         if (memcmp(&last, &BOX_ERROR, UINT8_T_SIZE) == 0) {
             fprintf(stdout, "NO BOXES FOUND\n");
             break;
@@ -228,8 +228,8 @@ int main(int argc, char **argv) {
         free(session_pipe_name);
         return -1;
     }
-
-    if (strcmp(request, "create")) {
+    // FIXME faltava ! antes do strcmp
+    if (!strcmp(request, "create")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_CREATION_R) != 0) {
             fprintf(stderr,"Unable to create Box.\n");
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
             free(session_pipe_name);
             return -1;
         }
-    } else if (strcmp(request, "remove")) {
+    } else if (!strcmp(request, "remove")) {
         if (box_request(server_pipe, session_pipe_name, box_name,
                         BOX_REMOVAL_R) != 0) {
             fprintf(stderr,"Unable to remove Box.\n");
@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
             free(session_pipe_name);
             return -1;
         }
-    } else if (strcmp(request, "list")) {
+    } else if (!strcmp(request, "list")) {
         if (list_box_request(server_pipe, session_pipe_name) != 0) {
             fprintf(stderr,"Unable to list Boxes.\n");
             free(server_pipe_name);
