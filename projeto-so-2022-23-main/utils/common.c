@@ -86,8 +86,8 @@ int insertionSort(struct Box *head, char *box_name, uint64_t box_size,
 int deleteBox(struct Box *head, char *box_name) {
     struct Box *curr = head;
     struct Box *prev = NULL;
-
-    while (curr != NULL && curr->box_name != box_name) {
+    // FIXME devia ser strcmp(curr->box_name, box_name) != 0
+    while (curr != NULL && strcmp(curr->box_name, box_name) != 0) {
         prev = curr;
         curr = curr->next;
     }

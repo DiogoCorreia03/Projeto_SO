@@ -37,7 +37,7 @@ int register_sub(int server_pipe, char *session_pipe_name, char *box) {
     memcpy(message, session_pipe_name, pipe_n_bytes);
     message += PIPE_NAME_LENGTH;
 
-    // Box
+    // Box FIXME falta '/' para tfs_directory
     size_t box_n_bytes =
         strlen(box) > BOX_NAME_LENGTH ? BOX_NAME_LENGTH : strlen(box);
     memcpy(message, box, box_n_bytes);
